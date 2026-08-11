@@ -1,0 +1,16 @@
+# golarm binary
+golarm
+
+# Compose brainstorm files
+.compose/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
