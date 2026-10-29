@@ -3,6 +3,9 @@ A simple terminal clock, timer & stopwatch written in Go, using [Bubbletea](http
 
 ## Demos
 
+### Clock
+![Demo Clock](clock.gif)
+
 ### Timer
 ![Demo Timer](demo.gif)
 
