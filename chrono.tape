@@ -1,8 +1,8 @@
 Output chrono.gif
 
 Set FontSize 22
-Set Width 800
-Set Height 400
+Set Width 1200
+Set Height 800
 
 Type "golarm chrono"
 Enter
