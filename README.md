@@ -14,7 +14,7 @@ A simple terminal clock, timer & stopwatch written in Go, using [Bubbletea](http
 
 ## Installation
 ```bash
-go install github.com/user/golarm@latest
+go install github.com/Hesamation/golarm@latest
 ```
 
 ## Usage
