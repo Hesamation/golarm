@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/user/golarm/internal"
+	"github.com/Hesamation/golarm/internal"
 )
 
 type tickMsg time.Time
