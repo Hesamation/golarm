@@ -1,4 +1,4 @@
-module github.com/user/golarm
+module github.com/Hesamation/golarm
 
 go 1.26.1
 
