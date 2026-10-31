@@ -9,8 +9,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/user/golarm/internal"
-	"github.com/user/golarm/internal/shamsi"
+	"github.com/Hesamation/golarm/internal"
+	"github.com/Hesamation/golarm/internal/shamsi"
 )
 
 type tickMsg time.Time
