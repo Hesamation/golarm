@@ -6,19 +6,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/user/golarm/internal/chrono"
-	"github.com/user/golarm/internal/clock"
-	"github.com/user/golarm/internal/timer"
+	"github.com/Hesamation/golarm/internal/chrono"
+	"github.com/Hesamation/golarm/internal/clock"
+	"github.com/Hesamation/golarm/internal/timer"
 )
 
 func main() {
 	args := os.Args[1:]
-
 	if len(args) == 0 {
 		clock.Run(false)
 		return
 	}
-
 	switch args[0] {
 	case "-12":
 		clock.Run(true)
