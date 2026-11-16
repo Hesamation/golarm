@@ -14,3 +14,9 @@ golarm
 # OS files
 .DS_Store
 Thumbs.db
+
+# goreleaser artifacts
+dist/
+
+# ZCode local state
+.zcode/

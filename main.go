@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"github.com/Hesamation/golarm/internal/clock"
 	"github.com/Hesamation/golarm/internal/timer"
 )
+
+var version = "dev"
 
 func main() {
 	args := os.Args[1:]
@@ -20,8 +23,10 @@ func main() {
 	switch args[0] {
 	case "-12":
 		clock.Run(true)
+	case "-v", "--version":
+		fmt.Println("golarm " + version)
 	case "-h", "--help":
-		printUsage()
+		printUsage(os.Stdout)
 	case "timer":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "usage: golarm timer <duration>")
@@ -42,19 +47,19 @@ func main() {
 		} else {
 			fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", args[0])
 		}
-		printUsage()
+		printUsage(os.Stderr)
 		os.Exit(1)
 	}
 }
 
-func printUsage() {
-	fmt.Fprintln(os.Stderr, "golarm — terminal clock, timer & stopwatch")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintln(os.Stderr, "  golarm              24h clock")
-	fmt.Fprintln(os.Stderr, "  golarm -12          12h clock")
-	fmt.Fprintln(os.Stderr, "  golarm timer 5m30s  countdown timer")
-	fmt.Fprintln(os.Stderr, "  golarm chrono       stopwatch")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Keys:  space  pause/resume    q / Esc  quit")
+func printUsage(w io.Writer) {
+	fmt.Fprintln(w, "golarm — terminal clock, timer & stopwatch")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Usage:")
+	fmt.Fprintln(w, "  golarm              24h clock")
+	fmt.Fprintln(w, "  golarm -12          12h clock")
+	fmt.Fprintln(w, "  golarm timer 5m30s  countdown timer")
+	fmt.Fprintln(w, "  golarm chrono       stopwatch")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Keys:  space  pause/resume (timer & chrono)    q / Esc  quit")
 }

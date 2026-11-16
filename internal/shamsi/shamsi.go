@@ -66,7 +66,7 @@ func isJalaaliLeapYear(jy int) bool {
 	if yearsInCycle < 0 {
 		yearsInCycle += 28
 	}
-	
+
 	// Leap years in a 28-year cycle (1-indexed positions)
 	leapYears := []int{1, 5, 9, 13, 17, 22, 26}
 	for _, ly := range leapYears {
@@ -96,14 +96,14 @@ func FromGregorian(gy, gm, gd int) Date {
 	for m := 1; m < gm; m++ {
 		dayOfYear += daysInGregorianMonth(m, gy)
 	}
-	
+
 	// The Jalaali year starts around March 21
 	// March 21 is day 80 of a non-leap year, 81 of a leap year
 	march21 := 80
 	if isLeapGregorian(gy) {
 		march21 = 81
 	}
-	
+
 	// Days since the start of the Jalaali year
 	var jDay int
 	if dayOfYear >= march21 {
@@ -116,16 +116,16 @@ func FromGregorian(gy, gm, gd int) Date {
 		_ = isJalaaliLeapYear(prevJy) // Check if previous year was leap
 		// Days from March 21 of previous year to end of year
 		prevMarch21 := 80
-		if isLeapGregorian(gy-1) {
+		if isLeapGregorian(gy - 1) {
 			prevMarch21 = 81
 		}
 		daysFromPrevMarch := 365 - prevMarch21 + 1 // Days from March 21 to Dec 31
-		if isLeapGregorian(gy-1) {
+		if isLeapGregorian(gy - 1) {
 			daysFromPrevMarch = 366 - prevMarch21 + 1
 		}
 		jDay = dayOfYear + daysFromPrevMarch
 	}
-	
+
 	// Find the Jalaali year
 	var jy int
 	if dayOfYear >= march21 {
@@ -133,7 +133,7 @@ func FromGregorian(gy, gm, gd int) Date {
 	} else {
 		jy = gy - 622
 	}
-	
+
 	// Find the month and day
 	jm := 1
 	remaining := jDay
@@ -154,9 +154,9 @@ func FromGregorian(gy, gm, gd int) Date {
 		remaining -= dim
 		jm++
 	}
-	
+
 	jd := remaining + 1
-	
+
 	// Calculate day of week
 	totalDays := 0
 	for y := 1; y < gy; y++ {
@@ -168,7 +168,7 @@ func FromGregorian(gy, gm, gd int) Date {
 	}
 	totalDays += dayOfYear - 1
 	wDay := (totalDays + 1) % 7
-	
+
 	return Date{
 		Year:  jy,
 		Month: jm,
