@@ -109,9 +109,8 @@ func (m model) View() string {
 	}
 
 	sd := shamsi.FromGregorian(now.Year(), int(now.Month()), now.Day())
-	shamsiStr := sd.FormatFull()
-	gregDay := shamsi.FormatGregorianWeekDay(now.Year(), int(now.Month()), now.Day())
-	gregStr := fmt.Sprintf("%s, %s", gregDay, now.Format("02 January 2006"))
+	shamsiStr := fmt.Sprintf("%s %s", sd.WeekDayName(), sd.FormatFull())
+	gregStr := now.Format("Monday, 02 January 2006")
 
 	secs := now.Hour()*3600 + now.Minute()*60 + now.Second()
 	pct := float64(secs) / 86400.0

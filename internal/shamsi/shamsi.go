@@ -1,5 +1,9 @@
-// Package shamsi provides conversion between Gregorian and Shamsi (Solar Hijri) calendars.
-// Uses the Jalaali calendar algorithm.
+// Package shamsi provides conversion between Gregorian and Shamsi (Solar
+// Hijri) dates.
+//
+// The conversion uses the Borkowski 33-year-cycle algorithm as implemented
+// by jalaali-js (validated against the official Iranian calendar, which is
+// astronomical rather than arithmetic, for the modern era).
 package shamsi
 
 import "fmt"
@@ -20,7 +24,7 @@ var ShortMonths = [12]string{
 	"Dey", "Bah", "Esf",
 }
 
-// Days of week in Roman letters.
+// Days of week in Roman letters. The Shamsi week starts on Shanbe (Saturday).
 var WeekDays = [7]string{
 	"Shanbe", "Yekshanbe", "Doshanbe",
 	"Sehshanbe", "Chaharshanbe", "Panjshanbe", "Jome",
@@ -32,6 +36,7 @@ var ShortWeekDays = [7]string{
 	"Seh", "Cha", "Pan", "Jom",
 }
 
+// Date is a Shamsi (Jalaali) calendar date.
 type Date struct {
 	Year  int
 	Month int // 1-12
@@ -39,145 +44,120 @@ type Date struct {
 	WDay  int // 0=Shanbe, 6=Jome
 }
 
-// isLeapGregorian returns true if the given Gregorian year is a leap year.
-func isLeapGregorian(year int) bool {
-	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
+// jalBreaks holds the Jalaali years that begin a new 33-year leap cycle
+// (Borkowski), as used by jalaali-js.
+var jalBreaks = [...]int{
+	-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210,
+	1635, 2060, 2097, 2192, 2262, 2324, 2394, 2456, 3178,
 }
 
-// daysInGregorianMonth returns the number of days in a Gregorian month.
-func daysInGregorianMonth(month, year int) int {
-	switch month {
-	case 2:
-		if isLeapGregorian(year) {
-			return 29
-		}
-		return 28
-	case 4, 6, 9, 11:
-		return 30
-	default:
-		return 31
-	}
-}
+var (
+	minJalaaliYear = jalBreaks[0]
+	maxJalaaliYear = jalBreaks[len(jalBreaks)-1] - 1
+)
 
-// isJalaaliLeapYear returns true if the given Jalaali year is a leap year.
-// The leap year pattern repeats every 28 years.
-func isJalaaliLeapYear(jy int) bool {
-	yearsInCycle := jy % 28
-	if yearsInCycle < 0 {
-		yearsInCycle += 28
-	}
+// div divides a by b, truncating toward zero (Go's native integer division).
+func div(a, b int) int { return a / b }
 
-	// Leap years in a 28-year cycle (1-indexed positions)
-	leapYears := []int{1, 5, 9, 13, 17, 22, 26}
-	for _, ly := range leapYears {
-		if yearsInCycle == ly {
-			return true
-		}
-	}
-	return false
-}
+// md returns a mod b with Go's truncated-division semantics.
+func md(a, b int) int { return a - a/b*b }
 
-// daysInJalaaliMonth returns the number of days in a Jalaali month.
-func daysInJalaaliMonth(jm int) int {
-	if jm <= 6 {
-		return 31
+// jalCal returns the Gregorian year, the day of March on which Farvardin 1
+// of the given Jalaali year falls, and the leap-cycle state (0 means the
+// year itself is leap). Panics for years outside the supported range.
+func jalCal(jy int) (gy, march, leap int) {
+	if jy < minJalaaliYear || jy > maxJalaaliYear {
+		panic("shamsi: Jalaali year out of range")
 	}
-	if jm <= 11 {
-		return 30
-	}
-	return 29 // Esfand - will be 30 in leap years
-}
-
-// FromGregorian converts a Gregorian date to Jalaali (Shamsi).
-// Based on the algorithm from the Jalaali calendar.
-func FromGregorian(gy, gm, gd int) Date {
-	// Calculate the day of the year
-	dayOfYear := gd
-	for m := 1; m < gm; m++ {
-		dayOfYear += daysInGregorianMonth(m, gy)
-	}
-
-	// The Jalaali year starts around March 21
-	// March 21 is day 80 of a non-leap year, 81 of a leap year
-	march21 := 80
-	if isLeapGregorian(gy) {
-		march21 = 81
-	}
-
-	// Days since the start of the Jalaali year
-	var jDay int
-	if dayOfYear >= march21 {
-		// Date is after March 21, so it's in the current Jalaali year
-		jDay = dayOfYear - march21
-	} else {
-		// Date is before March 21, so it's in the previous Jalaali year
-		// Calculate the total days in the previous Jalaali year
-		prevJy := gy - 622 - 1
-		_ = isJalaaliLeapYear(prevJy) // Check if previous year was leap
-		// Days from March 21 of previous year to end of year
-		prevMarch21 := 80
-		if isLeapGregorian(gy - 1) {
-			prevMarch21 = 81
-		}
-		daysFromPrevMarch := 365 - prevMarch21 + 1 // Days from March 21 to Dec 31
-		if isLeapGregorian(gy - 1) {
-			daysFromPrevMarch = 366 - prevMarch21 + 1
-		}
-		jDay = dayOfYear + daysFromPrevMarch
-	}
-
-	// Find the Jalaali year
-	var jy int
-	if dayOfYear >= march21 {
-		jy = gy - 621
-	} else {
-		jy = gy - 622
-	}
-
-	// Find the month and day
-	jm := 1
-	remaining := jDay
-	for jm <= 12 {
-		var dim int
-		if jm < 12 {
-			dim = daysInJalaaliMonth(jm)
-		} else {
-			if isJalaaliLeapYear(jy) {
-				dim = 30
-			} else {
-				dim = 29
-			}
-		}
-		if remaining < dim {
+	gy = jy + 621
+	leapJ := -14
+	jp := jalBreaks[0]
+	jump := 0
+	for i := 1; i < len(jalBreaks); i++ {
+		jm := jalBreaks[i]
+		jump = jm - jp
+		if jy < jm {
 			break
 		}
-		remaining -= dim
-		jm++
+		leapJ += div(jump, 33)*8 + div(md(jump, 33), 4)
+		jp = jm
 	}
-
-	jd := remaining + 1
-
-	// Calculate day of week
-	totalDays := 0
-	for y := 1; y < gy; y++ {
-		if isLeapGregorian(y) {
-			totalDays += 366
-		} else {
-			totalDays += 365
-		}
+	n := jy - jp
+	leapJ += div(n, 33)*8 + div(md(n, 33)+3, 4)
+	if md(jump, 33) == 4 && jump-n == 4 {
+		leapJ++
 	}
-	totalDays += dayOfYear - 1
-	wDay := (totalDays + 1) % 7
+	leapG := div(gy, 4) - div((div(gy, 100)+1)*3, 4) - 150
+	march = 20 + leapJ - leapG
 
-	return Date{
-		Year:  jy,
-		Month: jm,
-		Day:   jd,
-		WDay:  wDay,
+	// Years since the last leap year (0..4); 0 means jy itself is leap.
+	adjusted := n
+	if jump-n < 6 {
+		adjusted = n - jump + div(jump+4, 33)*33
 	}
+	leap = md(md(adjusted+1, 33)-1, 4)
+	if leap == -1 {
+		leap = 4
+	}
+	return gy, march, leap
 }
 
-// Format returns the month name.
+// g2d converts a Gregorian date to a Julian Day Number.
+func g2d(gy, gm, gd int) int {
+	d := div((gy+div(gm-8, 6)+100100)*1461, 4) + div(153*md(gm+9, 12)+2, 5) + gd - 34840408
+	d = d - div(div(gy+100100+div(gm-8, 6), 100)*3, 4) + 752
+	return d
+}
+
+// d2g converts a Julian Day Number to a Gregorian date.
+func d2g(jdn int) (gy, gm, gd int) {
+	j := 4*jdn + 139361631
+	j += div(div(4*jdn+183187720, 146097)*3, 4)*4 - 3908
+	i := div(md(j, 1461), 4)*5 + 308
+	gd = div(md(i, 153), 5) + 1
+	gm = md(div(i, 153), 12) + 1
+	gy = div(j, 1461) - 100100 + div(8-gm, 6)
+	return gy, gm, gd
+}
+
+// weekdayFromJDN returns the weekday of a Julian Day Number in the Shamsi
+// convention (0=Shanbe/Saturday, 6=Jome/Friday).
+func weekdayFromJDN(jdn int) int {
+	return md(jdn+2, 7)
+}
+
+// FromGregorian converts a Gregorian date to a Shamsi (Jalaali) date.
+// Panics for dates whose Jalaali year falls outside [-61, 3177].
+func FromGregorian(gy, gm, gd int) Date {
+	return d2j(g2d(gy, gm, gd))
+}
+
+// d2j converts a Julian Day Number to a Shamsi date.
+func d2j(jdn int) Date {
+	gyy, _, _ := d2g(jdn)
+	jy := gyy - 621
+	if jy > maxJalaaliYear {
+		jy = maxJalaaliYear
+	}
+	gy, march, leap := jalCal(jy)
+	k := jdn - g2d(gy, 3, march)
+	wDay := weekdayFromJDN(jdn)
+	if k >= 0 {
+		if k <= 185 {
+			return Date{Year: jy, Month: 1 + div(k, 31), Day: md(k, 31) + 1, WDay: wDay}
+		}
+		k -= 186
+	} else {
+		jy--
+		k += 179
+		if leap == 1 {
+			k++
+		}
+	}
+	return Date{Year: jy, Month: 7 + div(k, 30), Day: md(k, 30) + 1, WDay: wDay}
+}
+
+// Format returns the month name, or "" if the month is out of range.
 func (d Date) Format() string {
 	if d.Month < 1 || d.Month > 12 {
 		return ""
@@ -195,7 +175,7 @@ func (d Date) FormatCompact() string {
 	return fmt.Sprintf("%d %s %d", d.Day, ShortMonths[d.Month-1], d.Year)
 }
 
-// WeekDayName returns the day name in Jalaali week.
+// WeekDayName returns the day name in the Shamsi week.
 func (d Date) WeekDayName() string {
 	if d.WDay < 0 || d.WDay > 6 {
 		return ""
@@ -211,43 +191,25 @@ func (d Date) ShortWeekDayName() string {
 	return ShortWeekDays[d.WDay]
 }
 
-// FormatGregorianWeekDay returns the English day name for a Gregorian date.
-func FormatGregorianWeekDay(year, month, day int) string {
-	totalDays := 0
-	for y := 1; y < year; y++ {
-		if isLeapGregorian(y) {
-			totalDays += 366
-		} else {
-			totalDays += 365
-		}
-	}
-	for m := 1; m < month; m++ {
-		totalDays += daysInGregorianMonth(m, year)
-	}
-	totalDays += day - 1
-	wDay := (totalDays + 1) % 7
-	days := [7]string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
-	return days[wDay]
-}
-
-// DaysInMonth returns the number of days in a Jalaali month for the given year.
-func DaysInMonth(year, month int) int {
-	if month < 1 || month > 12 {
+// DaysInMonth returns the number of days in a Shamsi month for the given year.
+func DaysInMonth(jy, jm int) int {
+	if jm < 1 || jm > 12 {
 		return 0
 	}
-	if month <= 6 {
+	if jm <= 6 {
 		return 31
 	}
-	if month <= 11 {
+	if jm <= 11 {
 		return 30
 	}
-	if isJalaaliLeapYear(year) {
+	if IsLeapYear(jy) {
 		return 30
 	}
 	return 29
 }
 
-// IsLeapYear returns true if the given Jalaali year is a leap year.
-func IsLeapYear(year int) bool {
-	return isJalaaliLeapYear(year)
+// IsLeapYear returns true if the given Shamsi (Jalaali) year is a leap year.
+func IsLeapYear(jy int) bool {
+	_, _, leap := jalCal(jy)
+	return leap == 0
 }
