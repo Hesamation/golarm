@@ -12,10 +12,14 @@ import (
 	"github.com/Hesamation/golarm/internal/ui"
 )
 
-const tickInterval = 100 * time.Millisecond
+const (
+	tickInterval = 100 * time.Millisecond
+	visibleLaps  = 3 // laps shown under the clock
+)
 
 type model struct {
 	elapsed  time.Duration
+	laps     []time.Duration // split totals at each lap press
 	lastTick time.Time
 	paused   bool
 	width    int
@@ -48,6 +52,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case " ":
 			m.paused = !m.paused
 			m.lastTick = time.Now()
+		case "l":
+			if !m.paused {
+				m.laps = append(m.laps, m.elapsed)
+			}
+		case "r":
+			m.elapsed = 0
+			m.laps = nil
+			m.paused = false
+			m.lastTick = time.Now()
 		}
 		return m, nil
 
@@ -63,6 +76,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	_, dateColor := ui.Accents(m.lastTick.Hour())
 	timeStr := fmt.Sprintf("%02d:%02d:%02d",
 		int(m.elapsed.Hours()),
 		int(m.elapsed.Minutes())%60,
@@ -90,8 +104,41 @@ func (m model) View() string {
 		content.WriteString(accStyle.Render("PAUSED"))
 	}
 
+	if len(m.laps) > 0 {
+		content.WriteString("\n\n")
+		first := max(len(m.laps)-visibleLaps, 0)
+		for i := first; i < len(m.laps); i++ {
+			split := m.laps[i]
+			if i > 0 {
+				split -= m.laps[i-1]
+			}
+			row := fmt.Sprintf("L%d  +%s  Σ %s", i+1, lapFmt(split), lapFmt(m.laps[i]))
+			if i == len(m.laps)-1 {
+				row = ui.DateStyle(dateColor).Render(row)
+			} else {
+				row = ui.HintStyle.Render(row)
+			}
+			if i > first {
+				content.WriteString("\n")
+			}
+			content.WriteString(row)
+		}
+	}
+
 	content.WriteString("\n\n")
-	content.WriteString(ui.HelpStyle.Render("space pause/resume  q quit"))
+	content.WriteString(ui.HelpStyle.Render("space pause  l lap  r reset  q quit"))
 
 	return ui.Card(content.String(), m.width, m.height)
+}
+
+// lapFmt renders a duration as m:ss.cc (or h:mm:ss.cc past an hour).
+func lapFmt(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	cs := (d.Milliseconds() / 10) % 100
+	if h := int(d.Hours()); h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d.%02d", h, int(d.Minutes())%60, int(d.Seconds())%60, cs)
+	}
+	return fmt.Sprintf("%02d:%02d.%02d", int(d.Minutes())%60, int(d.Seconds())%60, cs)
 }

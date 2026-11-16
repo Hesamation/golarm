@@ -12,20 +12,26 @@ import (
 	"github.com/Hesamation/golarm/internal/ui"
 )
 
+// Options configures the clock display.
+type Options struct {
+	AMPM bool // 12-hour clock
+	FA   bool // Persian digits on the small text lines
+}
+
 type model struct {
+	opts    Options
 	now     time.Time
 	width   int
 	height  int
-	ampm    bool
 	maxFigW int
 }
 
-func Run(ampm bool) {
+func Run(opts Options) {
 	maxFigW := ui.ClockFigW
-	if ampm {
+	if opts.AMPM {
 		maxFigW = ui.ClockAMPMFigW
 	}
-	p := tea.NewProgram(model{ampm: ampm, now: time.Now(), maxFigW: maxFigW}, tea.WithAltScreen())
+	p := tea.NewProgram(model{opts: opts, now: time.Now(), maxFigW: maxFigW}, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -66,7 +72,7 @@ func (m model) View() string {
 	dateStyle := ui.DateStyle(date)
 
 	var timeStr string
-	if m.ampm {
+	if m.opts.AMPM {
 		h := now.Hour()
 		suffix := "AM"
 		if h >= 12 {
@@ -88,11 +94,16 @@ func (m model) View() string {
 
 	secs := now.Hour()*3600 + now.Minute()*60 + now.Second()
 	pct := float64(secs) / 86400.0
-	barW := 30
-	filled := min(int(pct*float64(barW)), barW)
+	filled := min(int(pct*float64(barWidth)), barWidth)
 	bar := accStyle.Render(strings.Repeat("█", filled)) +
-		ui.DimStyle.Render(strings.Repeat("░", barW-filled))
+		ui.DimStyle.Render(strings.Repeat("░", barWidth-filled))
 	pctStr := fmt.Sprintf("%.0f%% of day", pct*100)
+
+	if m.opts.FA {
+		shamsiStr = ui.FaDigits(shamsiStr)
+		gregStr = ui.FaDigits(gregStr)
+		pctStr = ui.FaDigits(pctStr)
+	}
 
 	var content strings.Builder
 	content.WriteString(strings.Join(ui.Fig(timeStr, accStyle, m.maxFigW), "\n"))
@@ -101,7 +112,7 @@ func (m model) View() string {
 	content.WriteString("\n\n")
 	content.WriteString(ui.HintStyle.Render(gregStr))
 	content.WriteString("\n\n")
-	content.WriteString(ui.SepStyle.Render(strings.Repeat("─", barW)))
+	content.WriteString(ui.SepStyle.Render(strings.Repeat("─", barWidth)))
 	content.WriteString("\n\n")
 	content.WriteString(bar)
 	content.WriteString("\n\n")
@@ -111,3 +122,5 @@ func (m model) View() string {
 
 	return ui.Card(content.String(), m.width, m.height)
 }
+
+const barWidth = 30
