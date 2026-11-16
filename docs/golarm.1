@@ -1,0 +1,104 @@
+.TH GOLARM 1 "2026" "golarm" "User Commands"
+.SH NAME
+golarm \- terminal clock, timer, stopwatch & alarm
+.SH SYNOPSIS
+.B golarm
+.RB [ clock ]
+.RB [ \-12 ]
+.RB [ \-\-fa ]
+.RB [ \-\-theme
+.IR name ]
+.br
+.B golarm timer
+.I duration
+.RB [ \-l
+.IR label ]
+.RB [ \-q ]
+.br
+.B golarm chrono
+.br
+.B golarm alarm
+.I HH:MM
+.RB [ \-l
+.IR label ]
+.br
+.B golarm
+.BR \-v " | " \-h
+.SH DESCRIPTION
+.B golarm
+is a terminal TUI combining a live clock (with Gregorian and Shamsi dates),
+a countdown timer, a lap stopwatch, and wall-clock alarms.
+.SH COMMANDS
+.TP
+.B clock
+Live clock (default command). Shows a figlet clock face, Shamsi and
+Gregorian dates, and a day-progress bar.
+.TP
+.BI timer " duration"
+Countdown timer.
+.I duration
+accepts Go syntax (\fB90s\fR, \fB5m\fR, \fB1h30m\fR), bare seconds
+(\fB90\fR), and colon forms (\fB10:00\fR = mm:ss, \fB1:30:00\fR).
+.TP
+.B chrono
+Stopwatch with lap support.
+.TP
+.BI alarm " HH:MM"
+Alarm at a wall-clock time (24-hour, or with an am/pm suffix such as
+\fB7:30pm\fR). Rolls to the next day when the time has already passed.
+On fire, sends a critical desktop notification (notify-send).
+.SH OPTIONS
+.TP
+.BR \-12 ", " \-\-12h
+12-hour clock.
+.TP
+.BR \-fa ", " \-\-fa
+Persian (Eastern Arabic) digits on the small text lines.
+.TP
+.BI \-\-theme " name"
+Color theme: \fBdefault\fR, \fBcatppuccin\fR, \fBgruvbox\fR,
+\fBtokyo-night\fR.
+.TP
+.BI \-l ", " \-\-label " text"
+Label shown in the timer UI and its notification (timer and alarm).
+.TP
+.BR \-q ", " \-\-quiet
+Headless timer: no TUI, fire the notification and exit 0 on completion,
+suitable for scripting.
+.TP
+.BR \-v ", " \-\-version
+Print version.
+.TP
+.BR \-h ", " \-\-help
+Print usage.
+.SH ENVIRONMENT
+.TP
+.B GOLARM_12H=1
+Default to the 12-hour clock.
+.TP
+.B GOLARM_FA=1
+Default to Persian digits.
+.TP
+.B GOLARM_THEME=<name>
+Default theme.
+.SH KEYS
+.TP
+.B space
+Pause/resume; dismisses a fired timer alarm.
+.TP
+.B r
+Restart the timer / re-arm the alarm / reset the stopwatch.
+.TP
+.B l
+Record a lap (chrono).
+.TP
+.B + ", " \- ", " "left", " "right"
+Adjust the remaining time by one minute (timer).
+.TP
+.BR q ", " Esc ", " Ctrl+C
+Quit.
+.SH FILES
+Notifications are sent via
+.BR notify-send (1).
+.SH LICENSE
+MIT — see LICENSE.

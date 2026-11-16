@@ -1,0 +1,35 @@
+# Maintainer: Hesamation <https://github.com/Hesamation>
+pkgname=golarm
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Terminal clock, timer, stopwatch and alarm"
+arch=(x86_64 aarch64)
+url="https://github.com/Hesamation/golarm"
+license=("MIT")
+makedepends=(go)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP') # set to the release tarball checksum when publishing
+
+build() {
+  cd "$pkgname-$pkgver"
+  export CGO_ENABLED=0 GOFLAGS=-buildvcs=false
+  go build -trimpath -ldflags "-s -w -X main.version=$pkgver" -o golarm .
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  go test ./...
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 golarm "$pkgdir/usr/bin/golarm"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 docs/golarm.1 "$pkgdir/usr/share/man/man1/golarm.1"
+  install -Dm644 completions/golarm.bash \
+    "$pkgdir/usr/share/bash-completion/completions/golarm"
+  install -Dm644 completions/golarm.zsh \
+    "$pkgdir/usr/share/zsh/site-functions/_golarm"
+  install -Dm644 completions/golarm.fish \
+    "$pkgdir/usr/share/fish/vendor_completions.d/golarm.fish"
+}
