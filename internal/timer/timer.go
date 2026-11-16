@@ -9,10 +9,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/Hesamation/golarm/internal"
+	"github.com/Hesamation/golarm/internal/ui"
 )
 
-type tickMsg time.Time
+const (
+	tickInterval = 100 * time.Millisecond
+	blinkEvery   = 5 // alarm blink toggles every 5th tick (~500 ms)
+	barWidth     = 30
+)
 
 type model struct {
 	total     time.Duration
@@ -21,6 +25,7 @@ type model struct {
 	paused    bool
 	alarming  bool
 	alarmOn   bool
+	ticks     int
 	width     int
 	height    int
 }
@@ -38,7 +43,7 @@ func Run(d time.Duration) {
 }
 
 func (m model) Init() tea.Cmd {
-	return tick()
+	return ui.Tick(tickInterval)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -60,11 +65,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tickMsg:
+	case ui.TickMsg:
 		now := time.Time(msg)
 		if !m.paused && !m.alarming {
-			delta := now.Sub(m.lastTick)
-			m.remaining -= delta
+			m.remaining -= now.Sub(m.lastTick)
 			if m.remaining <= 0 {
 				m.remaining = 0
 				m.alarming = true
@@ -73,83 +77,60 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.lastTick = now
 		if m.alarming {
-			m.alarmOn = !m.alarmOn
+			m.ticks++
+			if m.ticks%blinkEvery == 0 {
+				m.alarmOn = !m.alarmOn
+			}
 		}
-		return m, tick()
+		return m, ui.Tick(tickInterval)
 	}
 	return m, nil
 }
 
-func tick() tea.Cmd {
-	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
-}
-
 func (m model) View() string {
-	if m.width == 0 {
-		m.width = 80
-	}
-	if m.height == 0 {
-		m.height = 24
-	}
-
-	h := int(m.remaining.Hours())
-	min := int(m.remaining.Minutes()) % 60
-	sec := int(m.remaining.Seconds()) % 60
-	timeStr := fmt.Sprintf("%02d:%02d:%02d", h, min, sec)
+	hours := int(m.remaining.Hours())
+	minutes := int(m.remaining.Minutes()) % 60
+	secs := int(m.remaining.Seconds()) % 60
+	timeStr := fmt.Sprintf("%02d:%02d:%02d", hours, minutes, secs)
 
 	var accStyle lipgloss.Style
 	var statusText string
 
-	if m.alarming {
+	switch {
+	case m.alarming:
 		if m.alarmOn {
-			accStyle = lipgloss.NewStyle().Foreground(internal.AlarmCol).Bold(true)
+			accStyle = ui.AlarmStyle
 		} else {
-			accStyle = internal.HintStyle
+			accStyle = ui.HintStyle
 		}
 		statusText = "TIME'S UP"
-	} else if m.paused {
-		accStyle = lipgloss.NewStyle().Foreground(internal.PausedCol).Bold(true)
+	case m.paused:
+		accStyle = ui.PausedStyle
 		statusText = "PAUSED"
-	} else {
-		accent, _ := internal.TimeColors(time.Now().Hour())
-		accStyle = internal.AccentStyle(accent)
-	}
-
-	maxFigW := internal.FigletWidth("88:88:88")
-	figLines := internal.RenderFiglet(timeStr)
-	styledFig := make([]string, len(figLines))
-	for i, line := range figLines {
-		if pad := maxFigW - len(line); pad > 0 {
-			line += strings.Repeat(" ", pad)
-		}
-		styledFig[i] = accStyle.Render(line)
+	default:
+		accent, _ := ui.Accents(m.lastTick.Hour())
+		accStyle = ui.AccentStyle(accent)
 	}
 
 	var content strings.Builder
-	content.WriteString(strings.Join(styledFig, "\n"))
+	content.WriteString(strings.Join(ui.Fig(timeStr, accStyle, ui.ClockFigW), "\n"))
 
 	if statusText != "" {
 		content.WriteString("\n\n")
 		content.WriteString(accStyle.Render(statusText))
 	}
 
-	if !m.alarming && m.total > 0 {
+	if !m.alarming {
 		pct := 1.0 - float64(m.remaining)/float64(m.total)
 		if pct < 0 {
 			pct = 0
 		}
-		barW := 30
-		filled := int(pct * float64(barW))
-		if filled > barW {
-			filled = barW
-		}
+		filled := min(int(pct*float64(barWidth)), barWidth)
 		bar := accStyle.Render(strings.Repeat("█", filled)) +
-			internal.DimStyle.Render(strings.Repeat("░", barW-filled))
+			ui.DimStyle.Render(strings.Repeat("░", barWidth-filled))
 
 		content.WriteString("\n\n")
-		content.WriteString(internal.SepStyle.Render(strings.Repeat("─", 30)))
+		content.WriteString(ui.SepStyle.Render(strings.Repeat("─", barWidth)))
 		content.WriteString("\n\n")
 		content.WriteString(bar)
 	}
@@ -159,36 +140,7 @@ func (m model) View() string {
 		helpText = "q quit"
 	}
 	content.WriteString("\n\n")
-	content.WriteString(internal.HelpStyle.Render(helpText))
+	content.WriteString(ui.HelpStyle.Render(helpText))
 
-	card := internal.BorderStyle.Render(content.String())
-
-	cardLines := strings.Split(card, "\n")
-	cardH := len(cardLines)
-	cardW := 0
-	for _, line := range cardLines {
-		w := lipgloss.Width(line)
-		if w > cardW {
-			cardW = w
-		}
-	}
-
-	topPad := (m.height - cardH) / 2
-	if topPad < 0 {
-		topPad = 0
-	}
-	leftPad := (m.width - cardW) / 2
-	if leftPad < 0 {
-		leftPad = 0
-	}
-
-	var b strings.Builder
-	b.WriteString(strings.Repeat("\n", topPad))
-	for _, line := range cardLines {
-		b.WriteString(strings.Repeat(" ", leftPad))
-		b.WriteString(line)
-		b.WriteString("\n")
-	}
-
-	return b.String()
+	return ui.Card(content.String(), m.width, m.height)
 }

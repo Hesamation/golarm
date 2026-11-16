@@ -7,23 +7,25 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
-	"github.com/Hesamation/golarm/internal"
 	"github.com/Hesamation/golarm/internal/shamsi"
+	"github.com/Hesamation/golarm/internal/ui"
 )
 
-type tickMsg time.Time
-
 type model struct {
-	now    time.Time
-	width  int
-	height int
-	ampm   bool
+	now     time.Time
+	width   int
+	height  int
+	ampm    bool
+	maxFigW int
 }
 
 func Run(ampm bool) {
-	p := tea.NewProgram(model{ampm: ampm, now: time.Now()}, tea.WithAltScreen())
+	maxFigW := ui.ClockFigW
+	if ampm {
+		maxFigW = ui.ClockAMPMFigW
+	}
+	p := tea.NewProgram(model{ampm: ampm, now: time.Now(), maxFigW: maxFigW}, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -31,7 +33,7 @@ func Run(ampm bool) {
 }
 
 func (m model) Init() tea.Cmd {
-	return tick()
+	return ui.TickNext(time.Now(), time.Second)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -46,35 +48,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		return m, nil
-	case tickMsg:
+	case ui.TickMsg:
 		m.now = time.Time(msg)
-		return m, tick()
+		return m, ui.TickNext(m.now, time.Second)
 	}
 	return m, nil
 }
 
-func tick() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
-}
-
 func (m model) View() string {
-	if m.width == 0 {
-		m.width = 80
-	}
-	if m.height == 0 {
-		m.height = 24
-	}
-
 	now := m.now
 	if now.IsZero() {
 		now = time.Now()
 	}
 
-	accent, date := internal.TimeColors(now.Hour())
-	accStyle := internal.AccentStyle(accent)
-	dateStyle := internal.DateStyle(date)
+	accent, date := ui.Accents(now.Hour())
+	accStyle := ui.AccentStyle(accent)
+	dateStyle := ui.DateStyle(date)
 
 	var timeStr string
 	if m.ampm {
@@ -93,21 +82,6 @@ func (m model) View() string {
 		timeStr = fmt.Sprintf("%02d:%02d:%02d", now.Hour(), now.Minute(), now.Second())
 	}
 
-	maxTimeStr := "88:88:88"
-	if m.ampm {
-		maxTimeStr = "88:88:88 PM"
-	}
-	maxFigW := internal.FigletWidth(maxTimeStr)
-
-	figLines := internal.RenderFiglet(timeStr)
-	styledFig := make([]string, len(figLines))
-	for i, line := range figLines {
-		if pad := maxFigW - len(line); pad > 0 {
-			line += strings.Repeat(" ", pad)
-		}
-		styledFig[i] = accStyle.Render(line)
-	}
-
 	sd := shamsi.FromGregorian(now.Year(), int(now.Month()), now.Day())
 	shamsiStr := fmt.Sprintf("%s %s", sd.WeekDayName(), sd.FormatFull())
 	gregStr := now.Format("Monday, 02 January 2006")
@@ -115,57 +89,25 @@ func (m model) View() string {
 	secs := now.Hour()*3600 + now.Minute()*60 + now.Second()
 	pct := float64(secs) / 86400.0
 	barW := 30
-	filled := int(pct * float64(barW))
-	if filled > barW {
-		filled = barW
-	}
+	filled := min(int(pct*float64(barW)), barW)
 	bar := accStyle.Render(strings.Repeat("█", filled)) +
-		internal.DimStyle.Render(strings.Repeat("░", barW-filled))
+		ui.DimStyle.Render(strings.Repeat("░", barW-filled))
 	pctStr := fmt.Sprintf("%.0f%% of day", pct*100)
 
 	var content strings.Builder
-	content.WriteString(strings.Join(styledFig, "\n"))
+	content.WriteString(strings.Join(ui.Fig(timeStr, accStyle, m.maxFigW), "\n"))
 	content.WriteString("\n\n")
 	content.WriteString(dateStyle.Render(shamsiStr))
 	content.WriteString("\n\n")
-	content.WriteString(internal.HintStyle.Render(gregStr))
+	content.WriteString(ui.HintStyle.Render(gregStr))
 	content.WriteString("\n\n")
-	content.WriteString(internal.SepStyle.Render(strings.Repeat("─", 30)))
+	content.WriteString(ui.SepStyle.Render(strings.Repeat("─", barW)))
 	content.WriteString("\n\n")
 	content.WriteString(bar)
 	content.WriteString("\n\n")
-	content.WriteString(internal.HintStyle.Render(pctStr))
+	content.WriteString(ui.HintStyle.Render(pctStr))
 	content.WriteString("\n\n")
-	content.WriteString(internal.HelpStyle.Render("q  quit"))
+	content.WriteString(ui.HelpStyle.Render("q  quit"))
 
-	card := internal.BorderStyle.Render(content.String())
-
-	cardLines := strings.Split(card, "\n")
-	cardH := len(cardLines)
-	cardW := 0
-	for _, line := range cardLines {
-		w := lipgloss.Width(line)
-		if w > cardW {
-			cardW = w
-		}
-	}
-
-	topPad := (m.height - cardH) / 2
-	if topPad < 0 {
-		topPad = 0
-	}
-	leftPad := (m.width - cardW) / 2
-	if leftPad < 0 {
-		leftPad = 0
-	}
-
-	var b strings.Builder
-	b.WriteString(strings.Repeat("\n", topPad))
-	for _, line := range cardLines {
-		b.WriteString(strings.Repeat(" ", leftPad))
-		b.WriteString(line)
-		b.WriteString("\n")
-	}
-
-	return b.String()
+	return ui.Card(content.String(), m.width, m.height)
 }
