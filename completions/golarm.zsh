@@ -16,6 +16,7 @@ _golarm() {
 		'(-12 --12h)'{-12,--12h}'[12-hour clock]' \
 		'(-fa --fa)'{-fa,--fa}'[Persian digits on small text]' \
 		'--analog=-[show the analog clock]:renderer:(ansi)' \
+		'--calendar=[select the displayed date]:calendar:(gregorian shamsi both)' \
 		'1:cmd:->cmds' \
 		'*::arg:->args'
 
@@ -26,7 +27,9 @@ _golarm() {
 	args)
 		case $words[1] in
 		clock)
-			_arguments '--analog=-[show the analog clock]:renderer:(ansi)'
+			_arguments \
+				'--analog=-[show the analog clock]:renderer:(ansi)' \
+				'--calendar=[select the displayed date]:calendar:(gregorian shamsi both)'
 			;;
 		timer)
 			_message 'duration (90, 90s, 5m, 1h30m, 10:00, 1:30:00)'

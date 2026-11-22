@@ -17,12 +17,13 @@ import (
 var version = "dev"
 
 type options struct {
-	ampm  bool
-	fa    bool
-	face  clock.Face
-	theme string
-	label string
-	quiet bool
+	ampm     bool
+	fa       bool
+	face     clock.Face
+	calendar clock.Calendar
+	theme    string
+	label    string
+	quiet    bool
 }
 
 func main() {
@@ -33,9 +34,7 @@ func main() {
 	}
 
 	cmd, args := parseGlobal(os.Args[1:], &opts)
-	if cmd != "clock" && opts.face != clock.Digital {
-		fatal("--analog is only available for the clock")
-	}
+	rejectClockOptions(cmd, opts)
 
 	if opts.theme != "" {
 		t, ok := ui.FromName(opts.theme)
@@ -53,15 +52,17 @@ func main() {
 	switch cmd {
 	case "clock":
 		parseClockFlags(args, &opts)
-		clock.Run(clock.Options{AMPM: opts.ampm, FA: opts.fa, Face: opts.face})
+		calendar, err := calendarForClock(opts.calendar, os.Getenv("GOLARM_CALENDAR"))
+		if err != nil {
+			fatal(err.Error())
+		}
+		clock.Run(clock.Options{AMPM: opts.ampm, FA: opts.fa, Face: opts.face, Calendar: calendar})
 	case "timer":
 		dur, o := parseTimerArgs(args, &opts)
 		timer.Run(timer.Options{Total: dur, Label: o.label, Quiet: o.quiet})
 	case "chrono":
 		parseClockFlags(args, &opts)
-		if opts.face != clock.Digital {
-			fatal("--analog is only available for the clock")
-		}
+		rejectClockOptions(cmd, opts)
 		chrono.Run()
 	case "alarm":
 		o, target := parseAlarmArgs(args, &opts)
@@ -77,22 +78,30 @@ func main() {
 	}
 }
 
+func rejectClockOptions(cmd string, opts options) {
+	if cmd == "clock" {
+		return
+	}
+	if opts.face != clock.Digital {
+		fatal("--analog is only available for the clock")
+	}
+	if opts.calendar != "" {
+		fatal("--calendar is only available for the clock")
+	}
+}
+
 // parseGlobal walks args until the first non-flag token (the subcommand)
 // and applies global flags. Returns the subcommand (default "clock") and
 // the remaining args for per-command parsing.
 func parseGlobal(args []string, opts *options) (cmd string, rest []string) {
 	cmd = "clock"
 	for i := 0; i < len(args); i++ {
+		if used := parseClockOption(args[i:], opts); used != 0 {
+			i += used - 1
+			continue
+		}
 		a := args[i]
 		switch a {
-		case "-12", "--12h", "--ampm":
-			opts.ampm = true
-		case "-fa", "--fa":
-			opts.fa = true
-		case "--analog":
-			opts.face = clock.Analog
-		case "--analog=ansi":
-			opts.face = clock.AnalogANSI
 		case "-v", "--version":
 			fmt.Println("golarm " + version)
 			os.Exit(0)
@@ -117,25 +126,76 @@ func parseGlobal(args []string, opts *options) (cmd string, rest []string) {
 }
 
 func parseClockFlags(args []string, opts *options) {
-	for _, a := range args {
-		switch a {
-		case "-12", "--12h", "--ampm":
-			opts.ampm = true
-		case "-fa", "--fa":
-			opts.fa = true
-		case "--analog":
-			opts.face = clock.Analog
-		case "--analog=ansi":
-			opts.face = clock.AnalogANSI
-		case "--theme":
+	for len(args) > 0 {
+		if used := parseClockOption(args, opts); used != 0 {
+			args = args[used:]
+			continue
+		}
+		if args[0] == "--theme" {
 			// consumed globally only; reject here to avoid surprises
 			fatal("--theme must come before the command")
-		default:
-			fmt.Fprintf(os.Stderr, "unknown argument: %s\n\n", a)
-			printUsage(os.Stderr)
-			os.Exit(1)
 		}
+		fmt.Fprintf(os.Stderr, "unknown argument: %s\n\n", args[0])
+		printUsage(os.Stderr)
+		os.Exit(1)
 	}
+}
+
+// parseClockOption consumes shared clock options on either side of the command.
+func parseClockOption(args []string, opts *options) int {
+	switch args[0] {
+	case "-12", "--12h", "--ampm":
+		opts.ampm = true
+	case "-fa", "--fa":
+		opts.fa = true
+	case "--analog":
+		opts.face = clock.Analog
+	case "--analog=ansi":
+		opts.face = clock.AnalogANSI
+	default:
+		name, value, joined := strings.Cut(args[0], "=")
+		if name != "--calendar" {
+			return 0
+		}
+		used := 1
+		if !joined {
+			if len(args) < 2 || strings.HasPrefix(args[1], "-") {
+				fatal("--calendar requires a value (gregorian, shamsi, or both)")
+			}
+			used, value = 2, args[1]
+		}
+		calendar, err := parseCalendar(value)
+		if err != nil {
+			fatal(err.Error())
+		}
+		opts.calendar = calendar
+		return used
+	}
+	return 1
+}
+
+func parseCalendar(value string) (clock.Calendar, error) {
+	calendar := clock.Calendar(value)
+	switch calendar {
+	case clock.Gregorian, clock.Shamsi, clock.BothCalendars:
+		return calendar, nil
+	default:
+		return "", fmt.Errorf("invalid calendar %q (choose gregorian, shamsi, or both)", value)
+	}
+}
+
+func calendarForClock(selected clock.Calendar, env string) (clock.Calendar, error) {
+	if selected != "" {
+		return selected, nil
+	}
+	if env == "" {
+		return clock.Gregorian, nil
+	}
+	calendar, err := parseCalendar(env)
+	if err != nil {
+		return "", fmt.Errorf("GOLARM_CALENDAR: %w", err)
+	}
+	return calendar, nil
 }
 
 func parseTimerArgs(args []string, opts *options) (time.Duration, options) {
@@ -208,7 +268,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "golarm — terminal clock, timer, stopwatch & alarm")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "  golarm [clock] [-12] [--fa] [--analog[=ansi]]")
+	fmt.Fprintln(w, "  golarm [clock] [-12] [--fa] [--analog[=ansi]] [--calendar MODE]")
 	fmt.Fprintln(w, "                                 live clock with optional analog dial")
 	fmt.Fprintln(w, "  golarm timer 5m30s [-l L] [-q]  countdown timer")
 	fmt.Fprintln(w, "  golarm chrono                   stopwatch with laps")
@@ -216,7 +276,9 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Durations: 90 | 90s | 5m | 1h30m | 10:00 | 1:30:00")
 	fmt.Fprintln(w, "Themes:    default, catppuccin, gruvbox, tokyo-night")
+	fmt.Fprintln(w, "Calendars: gregorian (default), shamsi, both")
 	fmt.Fprintln(w, "Env:       GOLARM_12H=1  GOLARM_FA=1  GOLARM_THEME=<name>")
+	fmt.Fprintln(w, "           GOLARM_CALENDAR=<mode>")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Keys:  space pause/dismiss    r restart/re-arm    l lap (chrono)")
 	fmt.Fprintln(w, "       + / - adjust timer by 1m    a switch clock face    q / Esc quit")

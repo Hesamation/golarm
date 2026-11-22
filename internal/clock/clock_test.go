@@ -3,6 +3,7 @@ package clock
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -45,7 +46,7 @@ func TestChooseDial(t *testing.T) {
 		{"digital default", 80, 24, cellSize{8, 16}, false, true, termenv.TrueColor, Digital, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			face, l := chooseDial(tt.width, tt.height, tt.cell, tt.requested, tt.native, tt.profile)
+			face, l := chooseDial(tt.width, tt.height, 5, tt.cell, tt.requested, tt.native, tt.profile)
 			if face != tt.want || l.stacked != tt.wantStack {
 				t.Fatalf("got face %d, stacked %t, want %d, stacked %t", face, l.stacked, tt.want, tt.wantStack)
 			}
@@ -56,6 +57,56 @@ func TestChooseDial(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestClockDates(t *testing.T) {
+	now := time.Date(2026, time.November, 22, 19, 30, 0, 0, time.UTC)
+	const gregorian = "Sunday, 22 November 2026"
+	const solarHijri = "Yekshanbe 1 Azar 1405"
+	for _, tt := range []struct {
+		opts Options
+		want []string
+	}{
+		{Options{}, []string{gregorian}},
+		{Options{Calendar: Gregorian}, []string{gregorian}},
+		{Options{Calendar: Shamsi}, []string{solarHijri}},
+		{Options{Calendar: BothCalendars}, []string{solarHijri, gregorian}},
+		{Options{FA: true}, []string{"Sunday, ۲۲ November ۲۰۲۶"}},
+		{Options{Calendar: Shamsi, FA: true}, []string{"Yekshanbe ۱ Azar ۱۴۰۵"}},
+	} {
+		r := readClock(now, tt.opts)
+		if !slices.Equal(r.dates, tt.want) {
+			t.Errorf("readClock with %+v gives dates %q, want %q", tt.opts, r.dates, tt.want)
+		}
+	}
+	for _, face := range []Face{Digital, AnalogANSI} {
+		for _, calendar := range []Calendar{"", Shamsi, BothCalendars} {
+			m := &model{opts: Options{Calendar: calendar}, analog: face != Digital, profile: termenv.TrueColor}
+			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			m.now = now
+			view := m.View()
+			gregorianIndex, shamsiIndex := strings.Index(view, gregorian), strings.Index(view, solarHijri)
+			if (gregorianIndex >= 0) != (calendar != Shamsi) ||
+				(shamsiIndex >= 0) != (calendar != "") ||
+				(calendar == BothCalendars && shamsiIndex >= gregorianIndex) {
+				t.Errorf("wrong dates in face %d with calendar %q", face, calendar)
+			}
+		}
+	}
+}
+
+func TestStackedDialFitsSingleDate(t *testing.T) {
+	for _, tt := range []struct {
+		calendar Calendar
+		want     Face
+	}{{Gregorian, AnalogANSI}, {BothCalendars, Digital}} {
+		m := &model{opts: Options{Calendar: tt.calendar}, analog: true, width: 44, height: 22,
+			cells: cellSize{8, 16}, profile: termenv.TrueColor}
+		m.reflow()
+		if m.visible != tt.want || (m.visible == AnalogANSI && !m.layout.stacked) {
+			t.Errorf("calendar %q gave face %d and stacked %t, want %d", tt.calendar, m.visible, m.layout.stacked, tt.want)
+		}
 	}
 }
 

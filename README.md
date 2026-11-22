@@ -1,7 +1,7 @@
 # golarm
 
 A terminal clock, timer, stopwatch and alarm — a single Go binary with
-analog and figlet clock faces, Shamsi (Solar Hijri) + Gregorian dates, desktop
+analog and figlet clock faces, Gregorian and optional Shamsi (Solar Hijri) dates, desktop
 notifications, and themes, built with
 [Bubbletea](https://github.com/charmbracelet/bubbletea).
 
@@ -10,7 +10,7 @@ notifications, and themes, built with
 ### Analog clock
 
 ```sh
-golarm --theme catppuccin clock --analog
+golarm --theme catppuccin clock --analog --calendar both
 ```
 
 ![Golarm's sweeping analog dial in Kitty, its stacked layout after a resize, and the color-cell version in foot](analog.gif)
@@ -28,8 +28,8 @@ Recorded in Kitty and foot under Wayland.
 
 ## Features
 
-- **Clock** — analog or figlet, 24h or 12h, day-progress bar, Shamsi (Jalaali) and Gregorian
-  date lines with weekday names
+- **Clock** — analog or figlet, 24h or 12h, day progress, Gregorian or Shamsi
+  dates with weekday names
 - **Timer** — pause/resume, restart, ±1 minute adjustment, blinking alarm
   with a critical desktop notification on fire
 - **Chrono** — stopwatch with laps (splits + totals) and reset
@@ -55,7 +55,7 @@ make install
 ## Usage
 
 ```sh
-golarm [--theme T] [clock] [-12] [--fa] [--analog]
+golarm [--theme T] [clock] [-12] [--fa] [--analog] [--calendar MODE]
 golarm --analog=ansi                     # force the color-cell dial
 golarm timer 5m30s [-l LABEL] [-q]         # countdown timer
 golarm chrono                              # stopwatch with laps
@@ -85,6 +85,13 @@ The dial follows the active theme and changes the seconds-hand color
 throughout the day. In narrow windows, the dates and day progress move
 below the dial.
 
+### Calendar
+
+The clock shows the Gregorian date by default. Use `golarm --calendar shamsi`
+for Shamsi (Solar Hijri) or `golarm --calendar both` for both dates. Set
+`GOLARM_CALENDAR` to pick your shell's default. `--fa` selects Persian digits
+independently of the calendar.
+
 ### Themes
 
 `default` (slate), `catppuccin`, `gruvbox`, `tokyo-night` — via `--theme`
@@ -96,6 +103,7 @@ or `GOLARM_THEME`.
 | -------------- | ------------------------- |
 | `GOLARM_12H=1` | default to 12-hour clock  |
 | `GOLARM_FA=1`  | default to Persian digits |
+| `GOLARM_CALENDAR` | default to `gregorian`, `shamsi`, or `both` |
 | `GOLARM_THEME` | default theme name        |
 
 ### Controls

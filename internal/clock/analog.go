@@ -21,8 +21,8 @@ type dialLayout struct {
 	stacked                 bool
 }
 
-func layoutDial(width, height int, cell cellSize, pixels bool) dialLayout {
-	const gutter, readoutRows = 4, 6
+func layoutDial(width, height, readoutRows int, cell cellSize, pixels bool) dialLayout {
+	const gutter = 4
 	availableCols, availableRows := width-4, height-4
 	minimum, maximum := 180, 640
 	if !pixels {

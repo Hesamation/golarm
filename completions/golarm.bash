@@ -4,13 +4,14 @@ _golarm() {
 	local prev="${COMP_WORDS[COMP_CWORD-1]}"
 	local commands="clock timer chrono alarm"
 	local themes="default catppuccin gruvbox tokyo-night"
-	local face_flags="--analog --analog=ansi"
+	local calendars="gregorian shamsi both"
+	local clock_flags="--analog --analog=ansi --calendar"
 	local word
 
 	for word in "${COMP_WORDS[@]:1:COMP_CWORD-1}"; do
 		case "$word" in
 		timer | chrono | alarm)
-			face_flags=""
+			clock_flags=""
 			break
 			;;
 		clock)
@@ -19,9 +20,20 @@ _golarm() {
 		esac
 	done
 
-	if [[ -n "$face_flags" && "$prev" == "=" && "${COMP_WORDS[COMP_CWORD-2]}" == --analog ]]; then
+	if [[ -n "$clock_flags" && "$prev" == "=" && "${COMP_WORDS[COMP_CWORD-2]}" == --analog ]]; then
 		COMPREPLY=($(compgen -W "ansi" -- "$cur"))
 		return 0
+	fi
+
+	if [[ -n "$clock_flags" ]]; then
+		if [[ "$prev" == --calendar || ( "$prev" == "=" && "${COMP_WORDS[COMP_CWORD-2]}" == --calendar ) ]]; then
+			COMPREPLY=($(compgen -W "$calendars" -- "$cur"))
+			return 0
+		fi
+		if [[ "$cur" == --calendar=* ]]; then
+			COMPREPLY=($(compgen -P '--calendar=' -W "$calendars" -- "${cur#--calendar=}"))
+			return 0
+		fi
 	fi
 
 	if [[ "$prev" == "--theme" ]]; then
@@ -31,7 +43,7 @@ _golarm() {
 
 	case "$cur" in
 	-*)
-		COMPREPLY=($(compgen -W "-12 --12h -fa --fa --theme -h --help -v --version -q --quiet -l --label $face_flags" -- "$cur"))
+		COMPREPLY=($(compgen -W "-12 --12h -fa --fa --theme -h --help -v --version -q --quiet -l --label $clock_flags" -- "$cur"))
 		;;
 	*)
 		case "$prev" in

@@ -7,6 +7,8 @@ golarm \- terminal clock, timer, stopwatch & alarm
 .RB [ \-12 ]
 .RB [ \-\-fa ]
 .RB [ \-\-analog [=ansi] ]
+.RB [ \-\-calendar
+.IR mode ]
 .RB [ \-\-theme
 .IR name ]
 .br
@@ -27,13 +29,13 @@ golarm \- terminal clock, timer, stopwatch & alarm
 .BR \-v " | " \-h
 .SH DESCRIPTION
 .B golarm
-is a terminal TUI combining a live clock (with Gregorian and Shamsi dates),
+is a terminal TUI combining a live clock with a choice of calendars,
 a countdown timer, a lap stopwatch, and wall-clock alarms.
 .SH COMMANDS
 .TP
 .B clock
-Live clock (default command). Shows an optional analog dial, Shamsi and
-Gregorian dates, and a day-progress bar.
+Live clock (default command). Shows an optional analog dial, the Gregorian
+date by default, and a day-progress bar.
 .TP
 .BI timer " duration"
 Countdown timer.
@@ -62,6 +64,10 @@ them and draws the dial with color cells elsewhere. Append
 .B =ansi
 to force the color-cell dial.
 .TP
+.BI \-\-calendar " mode"
+Clock date display. Choose \fBgregorian\fR (default), \fBshamsi\fR, or
+\fBboth\fR. This flag overrides \fBGOLARM_CALENDAR\fR.
+.TP
 .BI \-\-theme " name"
 Color theme: \fBdefault\fR, \fBcatppuccin\fR, \fBgruvbox\fR,
 \fBtokyo-night\fR.
@@ -85,6 +91,9 @@ Default to the 12-hour clock.
 .TP
 .B GOLARM_FA=1
 Default to Persian digits.
+.TP
+.B GOLARM_CALENDAR=<mode>
+Default date display for the clock (\fBgregorian\fR, \fBshamsi\fR, or \fBboth\fR).
 .TP
 .B GOLARM_THEME=<name>
 Default theme.

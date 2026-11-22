@@ -8,6 +8,7 @@ complete -c golarm -l theme -x -a "default catppuccin gruvbox tokyo-night" -d "c
 complete -c golarm -l fa -d "Persian digits on small text"
 complete -c golarm -n "not __fish_seen_subcommand_from timer chrono alarm" -l analog -d "show the analog clock"
 complete -c golarm -n "not __fish_seen_subcommand_from timer chrono alarm" -l analog -a ansi -d "force the color-cell dial"
+complete -c golarm -n "not __fish_seen_subcommand_from timer chrono alarm" -l calendar -x -a "gregorian shamsi both" -d "select the displayed date"
 complete -c golarm -l help -s h -d "show help"
 complete -c golarm -l version -s v -d "show version"
 
