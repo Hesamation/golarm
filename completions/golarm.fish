@@ -6,6 +6,8 @@ complete -c golarm -n "__fish_use_subcommand" -a alarm -d "fire at a wall-clock 
 
 complete -c golarm -l theme -x -a "default catppuccin gruvbox tokyo-night" -d "color theme"
 complete -c golarm -l fa -d "Persian digits on small text"
+complete -c golarm -n "not __fish_seen_subcommand_from timer chrono alarm" -l analog -d "show the analog clock"
+complete -c golarm -n "not __fish_seen_subcommand_from timer chrono alarm" -l analog -a ansi -d "force the color-cell dial"
 complete -c golarm -l help -s h -d "show help"
 complete -c golarm -l version -s v -d "show version"
 

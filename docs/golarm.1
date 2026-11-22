@@ -6,6 +6,7 @@ golarm \- terminal clock, timer, stopwatch & alarm
 .RB [ clock ]
 .RB [ \-12 ]
 .RB [ \-\-fa ]
+.RB [ \-\-analog [=ansi] ]
 .RB [ \-\-theme
 .IR name ]
 .br
@@ -31,7 +32,7 @@ a countdown timer, a lap stopwatch, and wall-clock alarms.
 .SH COMMANDS
 .TP
 .B clock
-Live clock (default command). Shows a figlet clock face, Shamsi and
+Live clock (default command). Shows an optional analog dial, Shamsi and
 Gregorian dates, and a day-progress bar.
 .TP
 .BI timer " duration"
@@ -54,6 +55,12 @@ On fire, sends a critical desktop notification (notify-send).
 .TP
 .BR \-fa ", " \-\-fa
 Persian (Eastern Arabic) digits on the small text lines.
+.TP
+.BR \-\-analog "[=ansi]"
+Open the analog clock. Golarm uses Kitty graphics when the terminal supports
+them and draws the dial with color cells elsewhere. Append
+.B =ansi
+to force the color-cell dial.
 .TP
 .BI \-\-theme " name"
 Color theme: \fBdefault\fR, \fBcatppuccin\fR, \fBgruvbox\fR,
@@ -91,6 +98,9 @@ Restart the timer / re-arm the alarm / reset the stopwatch.
 .TP
 .B l
 Record a lap (chrono).
+.TP
+.B a
+Switch between analog and digital faces (clock).
 .TP
 .B + ", " \- ", " "left", " "right"
 Adjust the remaining time by one minute (timer).

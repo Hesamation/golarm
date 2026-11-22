@@ -93,6 +93,9 @@ func SetTheme(t Theme) {
 
 func init() { SetTheme(current) }
 
+// ActiveTheme returns the theme selected at startup.
+func ActiveTheme() Theme { return current }
+
 // Accents returns the active theme's accent and date colors for the hour of day.
 func Accents(hour int) (accent, date lipgloss.Color) {
 	return current.Accents(hour)

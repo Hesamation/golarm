@@ -19,6 +19,7 @@ var version = "dev"
 type options struct {
 	ampm  bool
 	fa    bool
+	face  clock.Face
 	theme string
 	label string
 	quiet bool
@@ -32,6 +33,9 @@ func main() {
 	}
 
 	cmd, args := parseGlobal(os.Args[1:], &opts)
+	if cmd != "clock" && opts.face != clock.Digital {
+		fatal("--analog is only available for the clock")
+	}
 
 	if opts.theme != "" {
 		t, ok := ui.FromName(opts.theme)
@@ -49,12 +53,15 @@ func main() {
 	switch cmd {
 	case "clock":
 		parseClockFlags(args, &opts)
-		clock.Run(clock.Options{AMPM: opts.ampm, FA: opts.fa})
+		clock.Run(clock.Options{AMPM: opts.ampm, FA: opts.fa, Face: opts.face})
 	case "timer":
 		dur, o := parseTimerArgs(args, &opts)
 		timer.Run(timer.Options{Total: dur, Label: o.label, Quiet: o.quiet})
 	case "chrono":
 		parseClockFlags(args, &opts)
+		if opts.face != clock.Digital {
+			fatal("--analog is only available for the clock")
+		}
 		chrono.Run()
 	case "alarm":
 		o, target := parseAlarmArgs(args, &opts)
@@ -82,6 +89,10 @@ func parseGlobal(args []string, opts *options) (cmd string, rest []string) {
 			opts.ampm = true
 		case "-fa", "--fa":
 			opts.fa = true
+		case "--analog":
+			opts.face = clock.Analog
+		case "--analog=ansi":
+			opts.face = clock.AnalogANSI
 		case "-v", "--version":
 			fmt.Println("golarm " + version)
 			os.Exit(0)
@@ -112,6 +123,10 @@ func parseClockFlags(args []string, opts *options) {
 			opts.ampm = true
 		case "-fa", "--fa":
 			opts.fa = true
+		case "--analog":
+			opts.face = clock.Analog
+		case "--analog=ansi":
+			opts.face = clock.AnalogANSI
 		case "--theme":
 			// consumed globally only; reject here to avoid surprises
 			fatal("--theme must come before the command")
@@ -193,7 +208,8 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "golarm — terminal clock, timer, stopwatch & alarm")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "  golarm [clock] [-12] [--fa]     24h (default) or 12h clock")
+	fmt.Fprintln(w, "  golarm [clock] [-12] [--fa] [--analog[=ansi]]")
+	fmt.Fprintln(w, "                                 live clock with optional analog dial")
 	fmt.Fprintln(w, "  golarm timer 5m30s [-l L] [-q]  countdown timer")
 	fmt.Fprintln(w, "  golarm chrono                   stopwatch with laps")
 	fmt.Fprintln(w, "  golarm alarm 7:30 [-l L]        fire at a wall-clock time")
@@ -203,5 +219,5 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "Env:       GOLARM_12H=1  GOLARM_FA=1  GOLARM_THEME=<name>")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Keys:  space pause/dismiss    r restart/re-arm    l lap (chrono)")
-	fmt.Fprintln(w, "       + / - adjust timer by 1m    q / Esc quit")
+	fmt.Fprintln(w, "       + / - adjust timer by 1m    a switch clock face    q / Esc quit")
 }

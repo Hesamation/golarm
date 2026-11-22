@@ -1,13 +1,21 @@
 # golarm
 
-A terminal clock, timer, stopwatch and alarm — a single Go binary with a
-figlet clock face, Shamsi (Solar Hijri) + Gregorian dates, desktop
+A terminal clock, timer, stopwatch and alarm — a single Go binary with
+analog and figlet clock faces, Shamsi (Solar Hijri) + Gregorian dates, desktop
 notifications, and themes, built with
 [Bubbletea](https://github.com/charmbracelet/bubbletea).
 
 ## Demos
 
-*(GIFs recorded on an earlier release)*
+### Analog clock
+
+```sh
+golarm --theme catppuccin clock --analog
+```
+
+![Golarm's sweeping analog dial in Kitty, its stacked layout after a resize, and the color-cell version in foot](analog.gif)
+
+Recorded in Kitty and foot under Wayland.
 
 ### Clock
 ![Demo Clock](clock.gif)
@@ -20,7 +28,7 @@ notifications, and themes, built with
 
 ## Features
 
-- **Clock** — 24h or 12h, day-progress bar, Shamsi (Jalaali) and Gregorian
+- **Clock** — analog or figlet, 24h or 12h, day-progress bar, Shamsi (Jalaali) and Gregorian
   date lines with weekday names
 - **Timer** — pause/resume, restart, ±1 minute adjustment, blinking alarm
   with a critical desktop notification on fire
@@ -47,7 +55,8 @@ make install
 ## Usage
 
 ```sh
-golarm [clock] [-12] [--fa] [--theme T]    # clock (default)
+golarm [--theme T] [clock] [-12] [--fa] [--analog]
+golarm --analog=ansi                     # force the color-cell dial
 golarm timer 5m30s [-l LABEL] [-q]         # countdown timer
 golarm chrono                              # stopwatch with laps
 golarm alarm 7:30 [-l LABEL]               # wall-clock alarm
@@ -56,6 +65,25 @@ golarm -v | -h
 
 Durations: `90` (seconds) | `90s` | `5m` | `1h30m` | `10:00` (mm:ss) |
 `1:30:00`. Alarm times: `07:30` (24h) or `7:30pm`.
+
+### Terminal support
+
+Press `a` to switch faces. Golarm checks for Kitty graphics and usable
+terminal pixel dimensions to show the full-resolution dial. Other color
+terminals use the same face drawn with half blocks. The color-cell dial
+is also used in tmux and screen. Golarm shows digital time when color is
+disabled or the window gets too small.
+
+| Tested terminal | Analog renderer |
+| --------------- | --------------- |
+| Kitty 0.51.0 | Pixel graphics |
+| Ghostty 1.4.0 | Pixel graphics |
+| foot 1.28.0 | Color cells |
+| tmux 3.8 inside Kitty | Color cells |
+
+The dial follows the active theme and changes the seconds-hand color
+throughout the day. In narrow windows, the dates and day progress move
+below the dial.
 
 ### Themes
 
@@ -77,6 +105,7 @@ or `GOLARM_THEME`.
 | `Space`               | pause/resume · dismiss a fired alarm           |
 | `r`                   | restart timer · re-arm alarm · reset stopwatch |
 | `l`                   | record a lap (chrono)                          |
+| `a`                   | switch between analog and digital (clock)      |
 | `+` / `-` (or arrows) | adjust timer by one minute                     |
 | `q` / `Esc`           | quit                                           |
 
