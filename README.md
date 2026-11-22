@@ -1,30 +1,30 @@
-# golarm
+# Golarm
 
-A terminal clock, timer, stopwatch and alarm — a single Go binary with
-analog and figlet clock faces, Gregorian and optional Shamsi (Solar Hijri) dates, desktop
-notifications, and themes, built with
-[Bubbletea](https://github.com/charmbracelet/bubbletea).
-
-## Demos
-
-### Analog clock
+A terminal clock with a sweeping analog dial, countdown timer, stopwatch
+with laps, and alarms. All in a single Go binary.
 
 ```sh
-golarm --theme catppuccin clock --analog --calendar both
+golarm --analog
 ```
 
-![Golarm's sweeping analog dial in Kitty, its stacked layout after a resize, and the color-cell version in foot](analog.gif)
+![Golarm's sweeping analog dial in Kitty on Hyprland, resizing from a wide view to a stacked layout](analog.gif)
 
-Recorded in Kitty and foot under Wayland.
+Recorded in Kitty on Hyprland using the Catppuccin theme.
 
-### Clock
-![Demo Clock](clock.gif)
+## Install
 
-### Timer
-![Demo Timer](demo.gif)
+Download a Linux archive from [GitHub Releases](https://github.com/Hesamation/golarm/releases)
+and put the extracted `golarm` binary on your `PATH`. Desktop notifications
+use `notify-send`.
 
-### Stopwatch (Chrono)
-![Demo Chrono](chrono.gif)
+With Go 1.26.1 or later, you can also install from source.
+
+```sh
+go install github.com/Hesamation/golarm@latest
+```
+
+From a local checkout, use `make install`. Arch users can build the package
+from `packaging/`.
 
 ## Features
 
@@ -43,14 +43,16 @@ The Shamsi conversion uses the Borkowski algorithm as implemented by
 official Iranian calendar and pinned by a golden test covering every day of
 1970–2100.
 
-## Installation
+<details>
+<summary>Digital clock, timer, and stopwatch demos</summary>
 
-```sh
-go install github.com/Hesamation/golarm@latest
-# from source:
-make install
-# Arch: see packaging/
-```
+![Digital clock showing the default Gregorian date](clock.gif)
+
+![Countdown timer with pause and restart controls](demo.gif)
+
+![Stopwatch with lap times](chrono.gif)
+
+</details>
 
 ## Usage
 
@@ -70,8 +72,8 @@ Durations: `90` (seconds) | `90s` | `5m` | `1h30m` | `10:00` (mm:ss) |
 
 Press `a` to switch faces. Golarm checks for Kitty graphics and usable
 terminal pixel dimensions to show the full-resolution dial. Other color
-terminals use the same face drawn with half blocks. The color-cell dial
-is also used in tmux and screen. Golarm shows digital time when color is
+terminals draw a dial optimized for half blocks. The color-cell dial also
+runs in tmux and screen. Golarm switches to digital time when color is
 disabled or the window gets too small.
 
 | Tested terminal | Analog renderer |
@@ -81,8 +83,10 @@ disabled or the window gets too small.
 | foot 1.28.0 | Color cells |
 | tmux 3.8 inside Kitty | Color cells |
 
+![Golarm's twelve-mark color-cell dial in foot](foot.png)
+
 The dial follows the active theme and changes the seconds-hand color
-throughout the day. In narrow windows, the dates and day progress move
+throughout the day. In narrow windows, the date and day progress move
 below the dial.
 
 ### Calendar
@@ -136,9 +140,9 @@ make fmt    # gofmt
 make build  # versioned, stripped binary
 ```
 
-Demos are recorded with [vhs](https://github.com/charmbracelet/vhs):
-`vhs clock.tape` (etc.). Packaging: `packaging/` (AUR PKGBUILD),
-`completions/` (bash, zsh, fish), `docs/golarm.1` (man page).
+The digital clock, timer, and stopwatch can also be recorded with
+[VHS](https://github.com/charmbracelet/vhs) and the `.tape` files in the repo.
+The TUI uses [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## License
 
