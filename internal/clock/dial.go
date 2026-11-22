@@ -137,6 +137,9 @@ func (d dialCanvas) polygon(c color.RGBA, vertices ...point) {
 }
 
 func drawDial(size int, palette dialPalette, cells bool) *image.RGBA {
+	if cells {
+		return drawCellDial(size, palette)
+	}
 	d := newDialCanvas(size)
 	black, white := rgb(0x06080B), rgb(0xECF0F4)
 	faceLight := mix(palette.enamel, palette.bezel, .29)
@@ -144,7 +147,7 @@ func drawDial(size int, palette dialPalette, cells bool) *image.RGBA {
 		for x := range size {
 			u, v := (float64(x)+.5-d.center)/d.radius, (float64(y)+.5-d.center)/d.radius
 			r := math.Hypot(u, v)
-			if !cells && r > .98 && r < 1.08 {
+			if r > .98 && r < 1.08 {
 				shadow := math.Hypot(u-.013, v-.031)
 				d.blend(x, y, black, .34*clamp((1.064-shadow)/.065))
 			}
@@ -178,10 +181,6 @@ func drawDial(size int, palette dialPalette, cells bool) *image.RGBA {
 		if tick%15 == 0 {
 			start, width = .739, .016
 		}
-		if cells {
-			width *= 1.75
-			start -= .04
-		}
 		if tick == 0 {
 			for _, offset := range []float64{-width * 1.75, width * 1.75} {
 				d.stroke(point{offset, -start}, point{offset, -.875}, width, palette.lume)
@@ -193,26 +192,44 @@ func drawDial(size int, palette dialPalette, cells bool) *image.RGBA {
 	return d.RGBA
 }
 
+func drawCellDial(size int, palette dialPalette) *image.RGBA {
+	d := newDialCanvas(size)
+	d.stroke(point{}, point{}, 1, mix(palette.bezel, palette.lume, .22))
+	d.stroke(point{}, point{}, .923, palette.enamel)
+	for hour := range 12 {
+		axis := direction(float64(hour) / 12)
+		start, width, ink := .779, .038, palette.metal
+		if hour%3 == 0 {
+			start, width, ink = .746, .046, palette.lume
+		}
+		d.stroke(axis.scale(start), axis.scale(.837), width, ink)
+	}
+	return d.RGBA
+}
+
 func drawHands(size int, now time.Time, palette dialPalette, accent color.RGBA, cells bool) *image.RGBA {
 	d := newDialCanvas(size)
 	hour, minute, second := handTurns(now)
-	widthScale := 1.0
-	if cells {
-		widthScale = 1.7
-	}
-	d.hand(direction(hour), .508, .047*widthScale, palette.metal)
-	d.hand(direction(minute), .725, .033*widthScale, palette.lume)
-
 	axis := direction(second)
-	d.stroke(axis.scale(-.24), axis.scale(.856), .007*widthScale, accent)
-	weight := axis.scale(-.225)
-	d.stroke(weight, weight, .031*widthScale, accent)
-	d.stroke(weight, weight, .014*widthScale, palette.enamel)
+	if cells {
+		d.stroke(point{}, direction(hour).scale(.465), .083, mix(palette.metal, palette.bezel, .19))
+		d.stroke(point{}, direction(minute).scale(.641), .053, palette.lume)
+		d.stroke(axis.scale(-.15), axis.scale(.784), .026, mix(accent, palette.lume, .12))
+		d.stroke(point{}, point{}, .07, palette.lume)
+		return d.RGBA
+	}
+	d.hand(direction(hour), .508, .047, palette.metal)
+	d.hand(direction(minute), .725, .033, palette.lume)
 
-	d.stroke(point{}, point{}, .068*widthScale, rgb(0x090D13))
-	d.stroke(point{}, point{}, .048*widthScale, palette.metal)
-	d.stroke(point{}, point{}, .032*widthScale, palette.bezel)
-	d.stroke(point{-.009, -.011}, point{-.009, -.011}, .013*widthScale, palette.lume)
+	d.stroke(axis.scale(-.24), axis.scale(.856), .007, accent)
+	weight := axis.scale(-.225)
+	d.stroke(weight, weight, .031, accent)
+	d.stroke(weight, weight, .014, palette.enamel)
+
+	d.stroke(point{}, point{}, .068, rgb(0x090D13))
+	d.stroke(point{}, point{}, .048, palette.metal)
+	d.stroke(point{}, point{}, .032, palette.bezel)
+	d.stroke(point{-.009, -.011}, point{-.009, -.011}, .013, palette.lume)
 	return d.RGBA
 }
 

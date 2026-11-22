@@ -3,7 +3,6 @@ package clock
 import (
 	"image"
 	"image/color"
-	"image/draw"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -91,10 +90,7 @@ func centerLine(line string, width int) string {
 }
 
 func (l dialLayout) colorCells(dial, hands *image.RGBA, profile termenv.Profile) []string {
-	frame := image.NewRGBA(dial.Bounds())
-	draw.Draw(frame, frame.Bounds(), dial, image.Point{}, draw.Src)
-	draw.Draw(frame, frame.Bounds(), hands, image.Point{}, draw.Over)
-	step := float64(frame.Bounds().Dx()) / float64(l.diameter)
+	step := float64(dial.Bounds().Dx()) / float64(l.diameter)
 	offsetX := float64((l.columns*l.width - l.diameter) / 2)
 	offsetY := float64((l.rows*l.height - l.diameter) / 2)
 	lines := make([]string, l.rows)
@@ -104,8 +100,8 @@ func (l dialLayout) colorCells(dial, hands *image.RGBA, profile termenv.Profile)
 		for x := range l.columns {
 			left, top := (float64(x*l.width)-offsetX)*step, (float64(y*l.height)-offsetY)*step
 			w, h := float64(l.width)*step, float64(l.height)*step/2
-			above := sampleHalfCell(frame, left, top, w, h)
-			below := sampleHalfCell(frame, left, top+h, w, h)
+			above := sampleDialInk(dial, hands, left, top, w, h)
+			below := sampleDialInk(dial, hands, left, top+h, w, h)
 			glyph := '▀'
 			nextFG, nextBG := "39", "49"
 			switch {
@@ -132,7 +128,15 @@ func (l dialLayout) colorCells(dial, hands *image.RGBA, profile termenv.Profile)
 	return lines
 }
 
-func sampleHalfCell(frame *image.RGBA, x, y, width, height float64) color.RGBA {
+func sampleDialInk(dial, hands *image.RGBA, x, y, width, height float64) color.RGBA {
+	// Keep the thin hands at full contrast when they cover a fraction of a cell.
+	if ink := sampleHalfCell(hands, x, y, width, height, 25); ink.A != 0 {
+		return ink
+	}
+	return sampleHalfCell(dial, x, y, width, height, 50)
+}
+
+func sampleHalfCell(frame *image.RGBA, x, y, width, height float64, coveragePercent int) color.RGBA {
 	var r, g, b, a int
 	const samples = 4
 	for row := range samples {
@@ -144,7 +148,7 @@ func sampleHalfCell(frame *image.RGBA, x, y, width, height float64) color.RGBA {
 			r, g, b, a = r+int(c.R), g+int(c.G), b+int(c.B), a+int(c.A)
 		}
 	}
-	if a < 128*samples*samples {
+	if a*100 < coveragePercent*255*samples*samples {
 		return color.RGBA{}
 	}
 	return color.RGBA{R: byte(r * 255 / a), G: byte(g * 255 / a), B: byte(b * 255 / a), A: 255}

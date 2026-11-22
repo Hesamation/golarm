@@ -2,6 +2,8 @@ package clock
 
 import (
 	"fmt"
+	"image"
+	"image/color"
 	"math"
 	"slices"
 	"strings"
@@ -107,6 +109,25 @@ func TestStackedDialFitsSingleDate(t *testing.T) {
 		if m.visible != tt.want || (m.visible == AnalogANSI && !m.layout.stacked) {
 			t.Errorf("calendar %q gave face %d and stacked %t, want %d", tt.calendar, m.visible, m.layout.stacked, tt.want)
 		}
+	}
+}
+
+func TestCellDialKeepsHandContrast(t *testing.T) {
+	face, needle := rgb(0x131722), rgb(0xD2ADFF)
+	box := image.Rect(0, 0, 4, 4)
+	dial, hands := image.NewRGBA(box), image.NewRGBA(box)
+	for y := range box.Dy() {
+		for x := range box.Dx() {
+			dial.SetRGBA(x, y, face)
+		}
+		hands.SetRGBA(1, y, needle)
+	}
+	if got := sampleDialInk(dial, hands, 0, 0, 4, 4); got != needle {
+		t.Errorf("thin hand shows as %v, want %v", got, needle)
+	}
+	hands.SetRGBA(1, 0, color.RGBA{})
+	if got := sampleDialInk(dial, hands, 0, 0, 4, 4); got != face {
+		t.Errorf("trace of hand shows as %v, want %v", got, face)
 	}
 }
 
