@@ -7,6 +7,21 @@ import (
 	"github.com/Hesamation/golarm/internal/clock"
 )
 
+func TestDialOptions(t *testing.T) {
+	var opts options
+	cmd, rest := parseGlobal([]string{"--dial=sector", "clock", "--accent", "#cDb1ff", "--dial-only", "--analog=ansi"}, &opts)
+	parseClockFlags(rest, &opts)
+	if cmd != "clock" || opts.dial != clock.SectorDial || !opts.dialOnly ||
+		opts.face != clock.AnalogANSI || opts.accent != "#cDb1ff" {
+		t.Fatalf("parsed %q with %+v", cmd, opts)
+	}
+	for _, value := range []string{"", "cdb1ff", "red", "#123", "#12345678", "#12345z", "#+12345"} {
+		if validAccent(value) {
+			t.Errorf("accepted invalid accent %q", value)
+		}
+	}
+}
+
 func TestAnalogClockFlag(t *testing.T) {
 	for args, want := range map[string]clock.Face{
 		"":                    clock.Digital,

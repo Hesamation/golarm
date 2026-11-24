@@ -28,6 +28,20 @@ func layoutDial(width, height, readoutRows int, cell cellSize, pixels bool) dial
 		minimum = max(24*cell.width, 10*cell.height)
 		maximum = min(52*cell.width, 26*cell.height)
 	}
+	if readoutRows == 0 {
+		if pixels {
+			minimum = 120
+		} else {
+			minimum = max(18*cell.width, 8*cell.height)
+		}
+		diameter := min(availableCols*cell.width, availableRows*cell.height, maximum)
+		if diameter < minimum {
+			return dialLayout{}
+		}
+		columns := (diameter + cell.width - 1) / cell.width
+		rows := (diameter + cell.height - 1) / cell.height
+		return dialLayout{cell, diameter, columns, rows, (width - columns) / 2, (height - rows) / 2, false}
+	}
 
 	diameter := min((availableCols-readoutWidth-gutter)*cell.width, availableRows*cell.height, maximum)
 	stacked := diameter < minimum || availableRows < readoutRows
@@ -78,7 +92,9 @@ func (l dialLayout) lines(width, height int, face, readout []string, footer stri
 		}
 		footerRow = l.top + max(l.rows, len(readout)) + 1
 	}
-	rows[footerRow] = centerLine(footer, width)
+	if footer != "" {
+		rows[footerRow] = centerLine(footer, width)
+	}
 	for i, row := range rows {
 		rows[i] += strings.Repeat(" ", max(width-lipgloss.Width(row), 0))
 	}

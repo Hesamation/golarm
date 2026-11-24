@@ -2,6 +2,12 @@
 
 _golarm() {
 	local -a commands
+	local -a dial_options
+	dial_options=(
+		'--dial=[select the analog dial]:dial:(classic sector minimal)'
+		'--dial-only[show only the dial]'
+		'--accent=[set a fixed RGB clock accent]:color:'
+	)
 	commands=(
 		'clock:24h (default) or 12h clock'
 		'timer:countdown timer'
@@ -17,6 +23,7 @@ _golarm() {
 		'(-fa --fa)'{-fa,--fa}'[Persian digits on small text]' \
 		'--analog=-[show the analog clock]:renderer:(ansi)' \
 		'--calendar=[select the displayed date]:calendar:(gregorian shamsi both)' \
+		"${dial_options[@]}" \
 		'1:cmd:->cmds' \
 		'*::arg:->args'
 
@@ -29,7 +36,8 @@ _golarm() {
 		clock)
 			_arguments \
 				'--analog=-[show the analog clock]:renderer:(ansi)' \
-				'--calendar=[select the displayed date]:calendar:(gregorian shamsi both)'
+				'--calendar=[select the displayed date]:calendar:(gregorian shamsi both)' \
+				"${dial_options[@]}"
 			;;
 		timer)
 			_message 'duration (90, 90s, 5m, 1h30m, 10:00, 1:30:00)'

@@ -21,6 +21,9 @@ type options struct {
 	fa       bool
 	face     clock.Face
 	calendar clock.Calendar
+	dial     clock.Dial
+	dialOnly bool
+	accent   string
 	theme    string
 	label    string
 	quiet    bool
@@ -56,7 +59,14 @@ func main() {
 		if err != nil {
 			fatal(err.Error())
 		}
-		clock.Run(clock.Options{AMPM: opts.ampm, FA: opts.fa, Face: opts.face, Calendar: calendar})
+		face := opts.face
+		if face == clock.Digital && (opts.dial != "" || opts.dialOnly) {
+			face = clock.Analog
+		}
+		clock.Run(clock.Options{
+			AMPM: opts.ampm, FA: opts.fa, Face: face, Calendar: calendar,
+			Dial: opts.dial, DialOnly: opts.dialOnly, Accent: opts.accent,
+		})
 	case "timer":
 		dur, o := parseTimerArgs(args, &opts)
 		timer.Run(timer.Options{Total: dur, Label: o.label, Quiet: o.quiet})
@@ -87,6 +97,9 @@ func rejectClockOptions(cmd string, opts options) {
 	}
 	if opts.calendar != "" {
 		fatal("--calendar is only available for the clock")
+	}
+	if opts.dial != "" || opts.dialOnly || opts.accent != "" {
+		fatal("--dial, --dial-only, and --accent are only available for the clock")
 	}
 }
 
@@ -152,26 +165,58 @@ func parseClockOption(args []string, opts *options) int {
 		opts.face = clock.Analog
 	case "--analog=ansi":
 		opts.face = clock.AnalogANSI
+	case "--dial-only":
+		opts.dialOnly = true
 	default:
 		name, value, joined := strings.Cut(args[0], "=")
-		if name != "--calendar" {
+		if name != "--calendar" && name != "--dial" && name != "--accent" {
 			return 0
 		}
 		used := 1
 		if !joined {
 			if len(args) < 2 || strings.HasPrefix(args[1], "-") {
-				fatal("--calendar requires a value (gregorian, shamsi, or both)")
+				if name == "--calendar" {
+					fatal("--calendar requires a value (gregorian, shamsi, or both)")
+				}
+				fatal(name + " requires a value")
 			}
 			used, value = 2, args[1]
 		}
-		calendar, err := parseCalendar(value)
-		if err != nil {
-			fatal(err.Error())
+		switch name {
+		case "--calendar":
+			calendar, err := parseCalendar(value)
+			if err != nil {
+				fatal(err.Error())
+			}
+			opts.calendar = calendar
+		case "--dial":
+			opts.dial = clock.Dial(value)
+			switch opts.dial {
+			case clock.ClassicDial, clock.SectorDial, clock.MinimalDial:
+			default:
+				fatal(fmt.Sprintf("invalid dial %q (choose classic, sector, or minimal)", value))
+			}
+		case "--accent":
+			if !validAccent(value) {
+				fatal(fmt.Sprintf("invalid accent %q (use an RGB color such as #cdb1ff)", value))
+			}
+			opts.accent = value
 		}
-		opts.calendar = calendar
 		return used
 	}
 	return 1
+}
+
+func validAccent(value string) bool {
+	if len(value) != 7 || value[0] != '#' {
+		return false
+	}
+	for _, c := range value[1:] {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", c) {
+			return false
+		}
+	}
+	return true
 }
 
 func parseCalendar(value string) (clock.Calendar, error) {
@@ -269,7 +314,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  golarm [clock] [-12] [--fa] [--analog[=ansi]] [--calendar MODE]")
-	fmt.Fprintln(w, "                                 live clock with optional analog dial")
+	fmt.Fprintln(w, "        [--dial classic|sector|minimal] [--dial-only] [--accent '#RRGGBB']")
 	fmt.Fprintln(w, "  golarm timer 5m30s [-l L] [-q]  countdown timer")
 	fmt.Fprintln(w, "  golarm chrono                   stopwatch with laps")
 	fmt.Fprintln(w, "  golarm alarm 7:30 [-l L]        fire at a wall-clock time")
@@ -281,5 +326,6 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "           GOLARM_CALENDAR=<mode>")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Keys:  space pause/dismiss    r restart/re-arm    l lap (chrono)")
-	fmt.Fprintln(w, "       + / - adjust timer by 1m    a switch clock face    q / Esc quit")
+	fmt.Fprintln(w, "       + / - adjust timer by 1m    a switch analog/digital    q / Esc quit")
+	fmt.Fprintln(w, "       f cycle analog dials    d toggle dial-only view")
 }

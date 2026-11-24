@@ -112,6 +112,43 @@ func TestStackedDialFitsSingleDate(t *testing.T) {
 	}
 }
 
+func TestDialCycleAndCompactView(t *testing.T) {
+	m := &model{opts: Options{Dial: ClassicDial, Accent: "#cdb1ff"}, analog: true,
+		width: 80, height: 24, cells: cellSize{8, 16}, profile: termenv.TrueColor}
+	m.reflow()
+	now := time.Date(2026, time.November, 22, 10, 8, 27, 0, time.UTC)
+	key := func(r rune) { m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}) }
+	for _, dial := range []Dial{SectorDial, MinimalDial, ClassicDial} {
+		m.now = now
+		m.View()
+		previous := m.dial
+		key('f')
+		view := m.View()
+		if m.cachedDial != dial || m.dial == previous || !strings.Contains(view, "f "+string(dial)) {
+			t.Fatalf("switch to %s did not update the artwork and footer", dial)
+		}
+	}
+	key('d')
+	m.width, m.height = 24, 18
+	m.reflow()
+	if m.visible != AnalogANSI || m.layout.left != (m.width-m.layout.columns)/2 {
+		t.Fatal("expected a centered dial in a narrow pane")
+	}
+	view := m.View()
+	if !strings.ContainsAny(view, "▀▄") || strings.Contains(view, "November") || strings.Contains(view, "dial-only") {
+		t.Fatal("expected the dial without the readout")
+	}
+	m.width, m.height = 18, 6
+	m.reflow()
+	m.now = now
+	if view := m.View(); m.visible != Digital || !strings.Contains(view, "10:08:27") || strings.Contains(view, "November") {
+		t.Fatal("expected compact time when the dial no longer fits")
+	}
+	if got := readClock(now, m.opts).accent; got != "#cdb1ff" {
+		t.Fatalf("clock accent is %q", got)
+	}
+}
+
 func TestCellDialKeepsHandContrast(t *testing.T) {
 	face, needle := rgb(0x131722), rgb(0xD2ADFF)
 	box := image.Rect(0, 0, 4, 4)

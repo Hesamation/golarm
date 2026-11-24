@@ -7,6 +7,9 @@ golarm \- terminal clock, timer, stopwatch & alarm
 .RB [ \-12 ]
 .RB [ \-\-fa ]
 .RB [ \-\-analog [=ansi] ]
+.RB [ \-\-dial " design" ]
+.RB [ \-\-dial\-only ]
+.RB [ \-\-accent " #RRGGBB" ]
 .RB [ \-\-calendar
 .IR mode ]
 .RB [ \-\-theme
@@ -64,6 +67,16 @@ them and draws the dial with color cells elsewhere. Append
 .B =ansi
 to force the color-cell dial.
 .TP
+.BI \-\-dial " design"
+Open the analog clock with the classic, sector, or minimal dial.
+Combine with \fB\-\-analog=ansi\fR to use color cells.
+.TP
+.B \-\-dial\-only
+Open a centered analog dial. Shows compact time if the dial cannot fit.
+.TP
+.BI \-\-accent " #RRGGBB"
+Set a fixed clock accent. Quote the color in the shell.
+.TP
 .BI \-\-calendar " mode"
 Clock date display. Choose \fBgregorian\fR (default), \fBshamsi\fR, or
 \fBboth\fR. This flag overrides \fBGOLARM_CALENDAR\fR.
@@ -110,6 +123,12 @@ Record a lap (chrono).
 .TP
 .B a
 Switch between analog and digital faces (clock).
+.TP
+.B f
+Cycle the analog dial designs.
+.TP
+.B d
+Toggle the dial-only view.
 .TP
 .B + ", " \- ", " "left", " "right"
 Adjust the remaining time by one minute (timer).

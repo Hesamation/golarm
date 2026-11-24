@@ -58,6 +58,8 @@ official Iranian calendar and pinned by a golden test covering every day of
 
 ```sh
 golarm [--theme T] [clock] [-12] [--fa] [--analog] [--calendar MODE]
+golarm clock --dial sector --accent '#cdb1ff'
+golarm clock --dial minimal --dial-only
 golarm --analog=ansi                     # force the color-cell dial
 golarm timer 5m30s [-l LABEL] [-q]         # countdown timer
 golarm chrono                              # stopwatch with laps
@@ -85,9 +87,20 @@ disabled or the window gets too small.
 
 ![Golarm's twelve-mark color-cell dial in foot](foot.png)
 
-The dial follows the active theme and changes the seconds-hand color
-throughout the day. In narrow windows, the date and day progress move
-below the dial.
+### Analog dials
+
+Press `f` to cycle **Classic**, **Sector**, and **Minimal**. Use
+`--dial classic|sector|minimal` to open directly on a design. All three
+are available in both renderers. Sector uses bolder marks in color-cell
+mode and shows its numerals when the pane is large enough.
+
+Press `d` or launch with `--dial-only` to center the dial and hide the
+readout and key hints. If the dial cannot fit, this view shows compact
+digital time. Press `a` to switch to the regular digital clock.
+
+The seconds hand and day meter follow the active theme. Set
+`--accent '#cdb1ff'` to choose a fixed RGB accent for the clock. In narrow
+windows, the date and day progress move below the dial.
 
 ### Calendar
 
@@ -118,6 +131,8 @@ or `GOLARM_THEME`.
 | `r`                   | restart timer · re-arm alarm · reset stopwatch |
 | `l`                   | record a lap (chrono)                          |
 | `a`                   | switch between analog and digital (clock)      |
+| `f`                   | cycle analog dials                              |
+| `d`                   | toggle the dial-only view                       |
 | `+` / `-` (or arrows) | adjust timer by one minute                     |
 | `q` / `Esc`           | quit                                           |
 

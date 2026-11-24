@@ -38,6 +38,9 @@ type Options struct {
 	FA       bool
 	Face     Face
 	Calendar Calendar
+	Dial     Dial
+	DialOnly bool
+	Accent   string
 }
 
 type model struct {
@@ -54,14 +57,19 @@ type model struct {
 	tickID   uint
 
 	dial *image.RGBA
-	// The cached face is keyed by its palette, size and rendering resolution.
-	palette    dialPalette
-	cachedFace Face
-	placement  dialLayout
-	dialUpload string
+	// The cached face is keyed by its palette, size, design and resolution.
+	palette        dialPalette
+	cachedFace     Face
+	cachedDial     Dial
+	cachedNumerals bool
+	placement      dialLayout
+	dialUpload     string
 }
 
 func Run(opts Options) {
+	if opts.Dial == "" {
+		opts.Dial = ClassicDial
+	}
 	m := &model{opts: opts, now: time.Now(), analog: opts.Face != Digital, profile: lipgloss.ColorProfile()}
 	programOpts := []tea.ProgramOption{tea.WithAltScreen()}
 	if opts.Face != AnalogANSI && m.profile != termenv.Ascii {
@@ -95,6 +103,14 @@ func (m *model) applyStartupKeys(keys []byte) bool {
 			return false
 		case "a":
 			m.analog = !m.analog
+		case "f":
+			if m.analog {
+				m.opts.Dial = m.opts.Dial.next()
+			}
+		case "d":
+			if m.analog {
+				m.opts.DialOnly = !m.opts.DialOnly
+			}
 		}
 		keys = keys[n:]
 	}
@@ -131,6 +147,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "a":
 			m.analog = !m.analog
 			return m, m.reflow()
+		case "f":
+			if m.analog {
+				m.opts.Dial = m.opts.Dial.next()
+			}
+		case "d":
+			if m.analog {
+				m.opts.DialOnly = !m.opts.DialOnly
+				return m, m.reflow()
+			}
 		}
 	case tickMsg:
 		if uint(msg) == m.tickID {
@@ -146,6 +171,9 @@ func (m *model) reflow() tea.Cmd {
 	readoutRows := baseReadoutRows + 1
 	if m.opts.Calendar == BothCalendars {
 		readoutRows++
+	}
+	if m.opts.DialOnly {
+		readoutRows = 0
 	}
 	visible, layout := chooseDial(m.width, m.height, readoutRows, m.cells, m.analog, m.graphics != nil, m.profile)
 	m.layout = layout
@@ -191,6 +219,9 @@ func readClock(now time.Time, opts Options) clockReadout {
 	seconds := now.Hour()*3600 + now.Minute()*60 + now.Second()
 	fraction := float64(seconds) / 86400
 	accent, date := ui.Accents(now.Hour())
+	if opts.Accent != "" {
+		accent = lipgloss.Color(opts.Accent)
+	}
 	readout := clockReadout{
 		exact:    now.Format(format),
 		progress: fmt.Sprintf("%.0f%% of day", fraction*100),
@@ -243,6 +274,9 @@ func (m *model) View() string {
 }
 
 func (m *model) digitalView(r clockReadout) string {
+	if m.analog && m.opts.DialOnly {
+		return m.compactTime(r)
+	}
 	maxFigWidth := ui.ClockFigW
 	if m.opts.AMPM {
 		maxFigWidth = ui.ClockAMPMFigW
@@ -268,10 +302,14 @@ func (m *model) digitalView(r clockReadout) string {
 	content := strings.Join(sections, "\n\n")
 	w, h := lipgloss.Size(ui.BorderStyle.Render(content))
 	if (m.width > 0 && w > m.width) || (m.height > 0 && h > m.height) {
-		compact := ansi.Truncate(ui.AccentStyle(r.accent).Render(m.exactTime(r)), m.width, "")
-		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, compact)
+		return m.compactTime(r)
 	}
 	return ui.Card(content, m.width, m.height)
+}
+
+func (m *model) compactTime(r clockReadout) string {
+	compact := ansi.Truncate(ui.AccentStyle(r.accent).Render(m.exactTime(r)), m.width, "")
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, compact)
 }
 
 func (m *model) analogView(r clockReadout) string {
@@ -282,11 +320,40 @@ func (m *model) analogView(r clockReadout) string {
 	}
 	theme := ui.ActiveTheme()
 	palette := paletteFor(theme.Dim, theme.Border, r.date)
-	if m.dial == nil || m.dial.Bounds().Dx() != size || m.palette != palette || m.cachedFace != m.visible {
-		m.dial = drawDial(size, palette, !native)
+	numerals := m.opts.Dial == SectorDial && (native || min(m.layout.columns, m.layout.rows*2) >= 34)
+	if m.dial == nil || m.dial.Bounds().Dx() != size || m.palette != palette ||
+		m.cachedFace != m.visible || m.cachedDial != m.opts.Dial || m.cachedNumerals != numerals {
+		m.dial = renderDial(size, palette, m.opts.Dial, !native, numerals)
 		m.palette, m.cachedFace, m.dialUpload = palette, m.visible, ""
+		m.cachedDial, m.cachedNumerals = m.opts.Dial, numerals
 	}
-	hands := drawHands(size, m.now, palette, themeRGB(r.accent), !native)
+	hands := drawHands(size, m.now, palette, themeRGB(r.accent), !native, m.opts.Dial)
+	var data []string
+	var footer string
+	if !m.opts.DialOnly {
+		data, footer = m.analogReadout(r, palette)
+	}
+	if !native {
+		rows := m.layout.lines(m.width, m.height, m.layout.colorCells(m.dial, hands, m.profile), data, footer)
+		if m.graphics != nil && m.placement.diameter > 0 {
+			rows[len(rows)-1] += m.graphics.clear()
+		}
+		return strings.Join(rows, "\n")
+	}
+	if m.dialUpload == "" || m.placement != m.layout {
+		m.dialUpload = kittyLayer(m.dial, m.layout, m.graphics.dialID, 1)
+		m.placement = m.layout
+	}
+	rows := m.layout.lines(m.width, m.height, nil, data, footer)
+	// The two uploads ride on separate rows so Bubble Tea's row diff can
+	// skip the static dial while the hands are moving.
+	rows[len(rows)-2] += m.dialUpload
+	rows[len(rows)-1] += kittyLayer(hands, m.layout, m.graphics.handsID, 2)
+	return strings.Join(rows, "\n")
+}
+
+func (m *model) analogReadout(r clockReadout, palette dialPalette) ([]string, string) {
+	theme := ui.ActiveTheme()
 	readoutStyle := func(lit lipgloss.Color, lift float64) lipgloss.Style {
 		c := mix(themeRGB(lit), palette.lume, lift)
 		return lipgloss.NewStyle().Foreground(lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B)))
@@ -306,22 +373,9 @@ func (m *model) analogView(r clockReadout) string {
 		data = append(data, details.Render(r.dates[1]))
 	}
 	data = append(data, "", meter+"  "+details.Render(r.progress))
-	footer := readoutStyle(theme.Hint, .18).Render("a  digital    q  quit")
-	if !native {
-		rows := m.layout.lines(m.width, m.height, m.layout.colorCells(m.dial, hands, m.profile), data, footer)
-		if m.graphics != nil && m.placement.diameter > 0 {
-			rows[len(rows)-1] += m.graphics.clear()
-		}
-		return strings.Join(rows, "\n")
+	footer := fmt.Sprintf("a digital   f %s   d dial-only", m.opts.Dial)
+	if len(footer)+9 <= m.width {
+		footer += "   q quit"
 	}
-	if m.dialUpload == "" || m.placement != m.layout {
-		m.dialUpload = kittyLayer(m.dial, m.layout, m.graphics.dialID, 1)
-		m.placement = m.layout
-	}
-	rows := m.layout.lines(m.width, m.height, nil, data, footer)
-	// The two uploads ride on separate rows so Bubble Tea's row diff can
-	// skip the static dial while the hands are moving.
-	rows[len(rows)-2] += m.dialUpload
-	rows[len(rows)-1] += kittyLayer(hands, m.layout, m.graphics.handsID, 2)
-	return strings.Join(rows, "\n")
+	return data, readoutStyle(theme.Hint, .18).Render(footer)
 }

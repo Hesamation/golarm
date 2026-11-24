@@ -11,6 +11,37 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Dial is the design used by either analog renderer.
+type Dial string
+
+const (
+	ClassicDial Dial = "classic"
+	SectorDial  Dial = "sector"
+	MinimalDial Dial = "minimal"
+)
+
+func (d Dial) next() Dial {
+	switch d {
+	case SectorDial:
+		return MinimalDial
+	case MinimalDial:
+		return ClassicDial
+	default:
+		return SectorDial
+	}
+}
+
+func renderDial(size int, palette dialPalette, dial Dial, cells, numerals bool) *image.RGBA {
+	switch dial {
+	case SectorDial:
+		return drawSectorDial(size, palette, cells, numerals)
+	case MinimalDial:
+		return drawMinimalDial(size, palette, cells)
+	default:
+		return drawDial(size, palette, cells)
+	}
+}
+
 type dialPalette struct {
 	enamel, bezel, metal, lume color.RGBA
 }
@@ -207,10 +238,21 @@ func drawCellDial(size int, palette dialPalette) *image.RGBA {
 	return d.RGBA
 }
 
-func drawHands(size int, now time.Time, palette dialPalette, accent color.RGBA, cells bool) *image.RGBA {
+func drawHands(size int, now time.Time, palette dialPalette, accent color.RGBA, cells bool, dial Dial) *image.RGBA {
 	d := newDialCanvas(size)
 	hour, minute, second := handTurns(now)
 	axis := direction(second)
+	if dial == MinimalDial {
+		hourWidth, minuteWidth, secondWidth := .029, .016, .007
+		if cells {
+			hourWidth, minuteWidth, secondWidth = .069, .043, .026
+		}
+		d.stroke(point{}, direction(hour).scale(.47), hourWidth, palette.metal)
+		d.stroke(point{}, direction(minute).scale(.68), minuteWidth, palette.lume)
+		d.stroke(axis.scale(-.14), axis.scale(.79), secondWidth, accent)
+		d.stroke(point{}, point{}, max(hourWidth, .04), palette.lume)
+		return d.RGBA
+	}
 	if cells {
 		d.stroke(point{}, direction(hour).scale(.465), .083, mix(palette.metal, palette.bezel, .19))
 		d.stroke(point{}, direction(minute).scale(.641), .053, palette.lume)

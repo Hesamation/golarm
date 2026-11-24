@@ -5,7 +5,8 @@ _golarm() {
 	local commands="clock timer chrono alarm"
 	local themes="default catppuccin gruvbox tokyo-night"
 	local calendars="gregorian shamsi both"
-	local clock_flags="--analog --analog=ansi --calendar"
+	local dials="classic sector minimal"
+	local clock_flags="--analog --analog=ansi --calendar --dial --dial-only --accent"
 	local word
 
 	for word in "${COMP_WORDS[@]:1:COMP_CWORD-1}"; do
@@ -26,6 +27,14 @@ _golarm() {
 	fi
 
 	if [[ -n "$clock_flags" ]]; then
+		if [[ "$prev" == --dial || ( "$prev" == "=" && "${COMP_WORDS[COMP_CWORD-2]}" == --dial ) ]]; then
+			COMPREPLY=($(compgen -W "$dials" -- "$cur"))
+			return 0
+		fi
+		if [[ "$cur" == --dial=* ]]; then
+			COMPREPLY=($(compgen -P '--dial=' -W "$dials" -- "${cur#--dial=}"))
+			return 0
+		fi
 		if [[ "$prev" == --calendar || ( "$prev" == "=" && "${COMP_WORDS[COMP_CWORD-2]}" == --calendar ) ]]; then
 			COMPREPLY=($(compgen -W "$calendars" -- "$cur"))
 			return 0
