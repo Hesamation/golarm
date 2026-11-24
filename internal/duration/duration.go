@@ -3,6 +3,7 @@ package duration
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -20,11 +21,16 @@ func Parse(s string) (time.Duration, error) {
 		if len(parts) >= 2 && len(parts) <= 3 {
 			return parseColon(parts)
 		}
+		if d, err := time.ParseDuration(s + "s"); err == nil && d > 0 {
+			return d, nil
+		}
+		// Keep numeric forms such as exponent notation that ParseDuration rejects.
 		secs, err := strconv.ParseFloat(s, 64)
-		if err != nil || secs <= 0 {
+		nanos := secs * float64(time.Second)
+		if err != nil || math.IsNaN(nanos) || nanos < 1 || nanos >= 1<<63 {
 			return 0, fmt.Errorf("invalid duration %q", s)
 		}
-		return time.Duration(secs * float64(time.Second)), nil
+		return time.Duration(nanos), nil
 	}
 	d, err := time.ParseDuration(s)
 	if err != nil || d <= 0 {
@@ -34,25 +40,19 @@ func Parse(s string) (time.Duration, error) {
 }
 
 func parseColon(parts []string) (time.Duration, error) {
-	nums := make([]int64, len(parts))
-	for i, p := range parts {
-		v, err := strconv.Atoi(strings.TrimSpace(p))
-		if err != nil || v < 0 {
+	const maxSeconds = math.MaxInt64 / int64(time.Second)
+	var seconds int64
+	for _, part := range parts {
+		v, err := strconv.ParseInt(strings.TrimSpace(part), 10, 64)
+		if err != nil || v < 0 || v > maxSeconds || seconds > (maxSeconds-v)/60 {
 			return 0, fmt.Errorf("invalid duration %q", strings.Join(parts, ":"))
 		}
-		nums[i] = int64(v)
+		seconds = seconds*60 + v
 	}
-	var d time.Duration
-	switch len(nums) {
-	case 2: // mm:ss
-		d = time.Duration(nums[0])*time.Minute + time.Duration(nums[1])*time.Second
-	case 3: // hh:mm:ss
-		d = time.Duration(nums[0])*time.Hour + time.Duration(nums[1])*time.Minute + time.Duration(nums[2])*time.Second
-	}
-	if d <= 0 {
+	if seconds == 0 {
 		return 0, fmt.Errorf("duration must be positive")
 	}
-	return d, nil
+	return time.Duration(seconds) * time.Second, nil
 }
 
 // ParseTimeOfDay parses HH:MM in 24-hour form, or with an am/pm suffix
@@ -77,24 +77,13 @@ func ParseTimeOfDay(s string) (hour, minute int, err error) {
 	if err1 != nil || err2 != nil {
 		return 0, 0, fmt.Errorf("invalid time %q — use HH:MM", orig)
 	}
-	switch meridiem {
-	case 1:
-		if h < 1 || h > 12 || m > 59 {
-			return 0, 0, fmt.Errorf("invalid time %q", orig)
-		}
-		if h == 12 {
-			h = 0
-		}
-	case 2:
-		if h < 1 || h > 12 || m > 59 {
-			return 0, 0, fmt.Errorf("invalid time %q", orig)
-		}
-		if h != 12 {
+	if h < 0 || h > 23 || m < 0 || m > 59 || (meridiem != 0 && (h < 1 || h > 12)) {
+		return 0, 0, fmt.Errorf("invalid time %q", orig)
+	}
+	if meridiem != 0 {
+		h %= 12
+		if meridiem == 2 {
 			h += 12
-		}
-	default:
-		if h > 23 || m > 59 {
-			return 0, 0, fmt.Errorf("invalid time %q", orig)
 		}
 	}
 	return h, m, nil

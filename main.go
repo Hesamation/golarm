@@ -76,7 +76,7 @@ func main() {
 		chrono.Run()
 	case "alarm":
 		o, target := parseAlarmArgs(args, &opts)
-		timer.Run(timer.Options{Total: time.Until(target), Label: o.label, Target: &target})
+		timer.Run(timer.Options{Label: o.label, Target: target})
 	default:
 		if strings.HasPrefix(cmd, "-") {
 			fmt.Fprintf(os.Stderr, "unknown flag: %s\n\n", cmd)
@@ -296,12 +296,7 @@ func parseAlarmArgs(args []string, opts *options) (options, time.Time) {
 			os.Exit(1)
 		}
 	}
-	now := time.Now()
-	target := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, now.Location())
-	if !target.After(now) {
-		target = target.AddDate(0, 0, 1)
-	}
-	return *opts, target
+	return *opts, timer.NextAlarm(time.Now(), h, m)
 }
 
 func fatal(msg string) {
@@ -325,7 +320,8 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "Env:       GOLARM_12H=1  GOLARM_FA=1  GOLARM_THEME=<name>")
 	fmt.Fprintln(w, "           GOLARM_CALENDAR=<mode>")
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "Keys:  space pause/dismiss    r restart/re-arm    l lap (chrono)")
-	fmt.Fprintln(w, "       + / - adjust timer by 1m    a switch analog/digital    q / Esc quit")
+	fmt.Fprintln(w, "Keys:  space pause timer/chrono or dismiss alert    q / Esc quit")
+	fmt.Fprintln(w, "       r restart/re-arm/reset    + / - adjust timer or alarm by 1m")
+	fmt.Fprintln(w, "       l lap (chrono)    a switch analog/digital")
 	fmt.Fprintln(w, "       f cycle analog dials    d toggle dial-only view")
 }

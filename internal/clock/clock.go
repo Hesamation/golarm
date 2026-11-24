@@ -52,9 +52,11 @@ type model struct {
 	cells    cellSize
 	profile  termenv.Profile
 	graphics *kittyDisplay
-	layout   dialLayout
-	visible  Face
-	tickID   uint
+	// This applies to both Kitty graphics and the color-cell fallback in Kitty.
+	spacedDigits bool
+	layout       dialLayout
+	visible      Face
+	tickID       uint
 
 	dial *image.RGBA
 	// The cached face is keyed by its palette, size, design and resolution.
@@ -70,7 +72,10 @@ func Run(opts Options) {
 	if opts.Dial == "" {
 		opts.Dial = ClassicDial
 	}
-	m := &model{opts: opts, now: time.Now(), analog: opts.Face != Digital, profile: lipgloss.ColorProfile()}
+	m := &model{
+		opts: opts, now: time.Now(), analog: opts.Face != Digital, profile: lipgloss.ColorProfile(),
+		spacedDigits: os.Getenv("TERM") == "xterm-kitty" || os.Getenv("KITTY_WINDOW_ID") != "",
+	}
 	programOpts := []tea.ProgramOption{tea.WithAltScreen()}
 	if opts.Face != AnalogANSI && m.profile != termenv.Ascii {
 		supported, keys := probeGraphics()
@@ -211,7 +216,8 @@ type clockReadout struct {
 	accent, date    lipgloss.Color
 }
 
-func readClock(now time.Time, opts Options) clockReadout {
+func (m *model) readClock() clockReadout {
+	now, opts := m.now, m.opts
 	format := "15:04:05"
 	if opts.AMPM {
 		format = "03:04:05 PM"
@@ -238,9 +244,9 @@ func readClock(now time.Time, opts Options) clockReadout {
 	}
 	if opts.FA {
 		for i, date := range readout.dates {
-			readout.dates[i] = ui.FaDigits(date)
+			readout.dates[i] = ui.FaDigits(date, m.spacedDigits)
 		}
-		readout.progress = ui.FaDigits(readout.progress)
+		readout.progress = ui.FaDigits(readout.progress, m.spacedDigits)
 	}
 	return readout
 }
@@ -253,13 +259,13 @@ func (r clockReadout) bar(width int) string {
 
 func (m *model) exactTime(r clockReadout) string {
 	if m.opts.FA {
-		return ui.FaDigits(r.exact)
+		return ui.FaDigits(r.exact, m.spacedDigits)
 	}
 	return r.exact
 }
 
 func (m *model) View() string {
-	readout := readClock(m.now, m.opts)
+	readout := m.readClock()
 	if m.visible != Digital {
 		return m.analogView(readout)
 	}
@@ -308,7 +314,12 @@ func (m *model) digitalView(r clockReadout) string {
 }
 
 func (m *model) compactTime(r clockReadout) string {
-	compact := ansi.Truncate(ui.AccentStyle(r.accent).Render(m.exactTime(r)), m.width, "")
+	exact := m.exactTime(r)
+	if m.opts.FA && m.spacedDigits && m.width > 0 && lipgloss.Width(exact) > m.width {
+		// Keep the full time visible when the inter-digit spaces cannot fit.
+		exact = r.exact
+	}
+	compact := ansi.Truncate(ui.AccentStyle(r.accent).Render(exact), m.width, "")
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, compact)
 }
 

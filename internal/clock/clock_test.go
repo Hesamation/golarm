@@ -77,7 +77,8 @@ func TestClockDates(t *testing.T) {
 		{Options{FA: true}, []string{"Sunday, ۲۲ November ۲۰۲۶"}},
 		{Options{Calendar: Shamsi, FA: true}, []string{"Yekshanbe ۱ Azar ۱۴۰۵"}},
 	} {
-		r := readClock(now, tt.opts)
+		m := model{now: now, opts: tt.opts}
+		r := m.readClock()
 		if !slices.Equal(r.dates, tt.want) {
 			t.Errorf("readClock with %+v gives dates %q, want %q", tt.opts, r.dates, tt.want)
 		}
@@ -95,6 +96,27 @@ func TestClockDates(t *testing.T) {
 				t.Errorf("wrong dates in face %d with calendar %q", face, calendar)
 			}
 		}
+	}
+}
+
+func TestSpacedPersianReadout(t *testing.T) {
+	m := model{
+		now:  time.Date(2026, time.September, 23, 21, 34, 56, 0, time.UTC),
+		opts: Options{FA: true, Calendar: BothCalendars}, spacedDigits: true,
+	}
+	r := m.readClock()
+	if want := "Wednesday, ۲\u2009۳ September ۲\u2009۰\u2009۲\u2009۶"; r.dates[1] != want {
+		t.Errorf("Gregorian date = %q, want %q", r.dates[1], want)
+	}
+	if got, want := m.exactTime(r), "۲\u2009۱:۳\u2009۴:۵\u2009۶"; got != want {
+		t.Errorf("time = %q, want %q", got, want)
+	}
+	if want := "۹\u2009۰% of day"; r.progress != want {
+		t.Errorf("progress = %q, want %q", r.progress, want)
+	}
+	m.width, m.height = 8, 1
+	if view := m.compactTime(r); !strings.Contains(view, r.exact) {
+		t.Errorf("tiny compact view = %q, want full time %q", view, r.exact)
 	}
 }
 
@@ -144,7 +166,7 @@ func TestDialCycleAndCompactView(t *testing.T) {
 	if view := m.View(); m.visible != Digital || !strings.Contains(view, "10:08:27") || strings.Contains(view, "November") {
 		t.Fatal("expected compact time when the dial no longer fits")
 	}
-	if got := readClock(now, m.opts).accent; got != "#cdb1ff" {
+	if got := m.readClock().accent; got != "#cdb1ff" {
 		t.Fatalf("clock accent is %q", got)
 	}
 }

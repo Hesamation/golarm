@@ -1,21 +1,22 @@
 # Golarm
 
-A terminal clock with a sweeping analog dial, countdown timer, stopwatch
-with laps, and alarms. All in a single Go binary.
+A sweeping analog clock for your terminal. Pick one of three dials and leave
+it open in a split pane with Gregorian or Solar Hijri dates. Golarm also includes
+a countdown timer, a lap stopwatch, and wall-clock alarms in a single Go binary.
 
 ```sh
-golarm --analog
+golarm --theme catppuccin --analog --calendar both
 ```
 
-![Golarm's sweeping analog dial in Kitty on Hyprland, resizing from a wide view to a stacked layout](analog.gif)
+![Golarm cycling through Classic, Sector, and Minimal in Kitty before Sector stacks its readout in a narrow pane](analog.gif)
 
-Recorded in Kitty on Hyprland using the Catppuccin theme.
+Recorded in Kitty with the Catppuccin theme.
 
 ## Install
 
-Download a Linux archive from [GitHub Releases](https://github.com/Hesamation/golarm/releases)
-and put the extracted `golarm` binary on your `PATH`. Desktop notifications
-use `notify-send`.
+Download the Linux `amd64` or `arm64` archive from [GitHub Releases](https://github.com/Hesamation/golarm/releases)
+and put the extracted `golarm` binary on your `PATH`. Desktop alerts use
+`notify-send` and a desktop notification daemon.
 
 With Go 1.26.1 or later, you can also install from source.
 
@@ -23,19 +24,21 @@ With Go 1.26.1 or later, you can also install from source.
 go install github.com/Hesamation/golarm@latest
 ```
 
-From a local checkout, use `make install`. Arch users can build the package
-from `packaging/`.
+Use `make install` to run the code from this checkout. The dial presets shown
+here require a build newer than `v0.1.0`. Arch users can find the package recipe
+in `packaging/`.
 
 ## Features
 
 - **Clock** — analog or figlet, 24h or 12h, day progress, Gregorian or Shamsi
   dates with weekday names
-- **Timer** — pause/resume, restart, ±1 minute adjustment, blinking alarm
-  with a critical desktop notification on fire
+- **Timer** — pause/resume, restart, ±1 minute adjustment, and a blinking
+  alert. Switches to a compact countdown in narrow panes.
 - **Chrono** — stopwatch with laps (splits + totals) and reset
-- **Alarm** — fire at a wall-clock time, rolls over to the next day
-- **Headless mode** — `golarm timer 5m -q` blocks, notifies, exits 0: chain
-  it in scripts
+- **Alarm** — schedule the next occurrence of a local time. Keep the terminal
+  session running for the alarm to fire.
+- **Headless mode** — `golarm timer 5m -q` waits and exits 0 when the countdown
+  completes, so you can chain it in scripts.
 - **Persian digits** (`--fa`), **themes** (`--theme`), Persian weekday names
 
 The Shamsi conversion uses the Borkowski algorithm as implemented by
@@ -107,7 +110,9 @@ windows, the date and day progress move below the dial.
 The clock shows the Gregorian date by default. Use `golarm --calendar shamsi`
 for Shamsi (Solar Hijri) or `golarm --calendar both` for both dates. Set
 `GOLARM_CALENDAR` to pick your shell's default. `--fa` selects Persian digits
-independently of the calendar.
+in the readout independently of the calendar. In Kitty, thin spaces keep the
+digits in order. Very narrow panes use ASCII time when the spaced digits cannot
+fit.
 
 ### Themes
 
@@ -127,24 +132,28 @@ or `GOLARM_THEME`.
 
 | Key                   | Action                                         |
 | --------------------- | ---------------------------------------------- |
-| `Space`               | pause/resume · dismiss a fired alarm           |
+| `Space`               | pause/resume timer or stopwatch · dismiss a fired alert |
 | `r`                   | restart timer · re-arm alarm · reset stopwatch |
 | `l`                   | record a lap (chrono)                          |
 | `a`                   | switch between analog and digital (clock)      |
 | `f`                   | cycle analog dials                              |
 | `d`                   | toggle the dial-only view                       |
-| `+` / `-` (or arrows) | adjust timer by one minute                     |
+| `+` / `-` (or arrows) | adjust countdown or alarm time by one minute   |
 | `q` / `Esc`           | quit                                           |
+
+An alarm can be moved to a future time with `+` or `-`. Press `r` to re-arm it
+for the next occurrence of the displayed time.
 
 ## Scripting
 
 ```sh
-golarm timer 5m -q && notify-send "Pasta done"
-golarm timer 90 -q && make deploy
+golarm timer 5m -q --label "Pasta"
+golarm timer 90 -q && make test
 ```
 
-`-q` runs without the TUI, sends the notification, and exits 0 on
-completion (or non-zero if interrupted).
+`-q` runs without the TUI and exits 0 when the countdown completes. It attempts
+a desktop notification on completion. Notification delivery is best effort.
+Interrupting the countdown exits nonzero.
 
 ## Development
 

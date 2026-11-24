@@ -27,6 +27,15 @@ func TestParse(t *testing.T) {
 		{"1:2:3:4", 0, false},
 		{"5", 5 * time.Second, true},
 		{"0.5", 500 * time.Millisecond, true},
+		{"1e-3", time.Millisecond, true},
+		{"9223372036.854775807", 1<<63 - 1, true},
+		{"NaN", 0, false},
+		{"+Inf", 0, false},
+		{"0.0000000001", 0, false},
+		{"9223372036.854775808", 0, false},
+		{"153722867:16", 9223372036 * time.Second, true},
+		{"153722867:17", 0, false},
+		{"2562048:00:00", 0, false},
 	}
 	for _, c := range cases {
 		got, err := Parse(c.in)
@@ -59,6 +68,9 @@ func TestParseTimeOfDay(t *testing.T) {
 		{"7:30PM", 19, 30, true},
 		{"24:00", 0, 0, false},
 		{"7:60", 0, 0, false},
+		{"-1:30", 0, 0, false},
+		{"07:-1", 0, 0, false},
+		{"07:-1pm", 0, 0, false},
 		{"7:30xm", 0, 0, false},
 		{"noon", 0, 0, false},
 	}

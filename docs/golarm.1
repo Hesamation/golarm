@@ -41,7 +41,7 @@ Live clock (default command). Shows an optional analog dial, the Gregorian
 date by default, and a day-progress bar.
 .TP
 .BI timer " duration"
-Countdown timer.
+Countdown timer with a compact display for narrow panes.
 .I duration
 accepts Go syntax (\fB90s\fR, \fB5m\fR, \fB1h30m\fR), bare seconds
 (\fB90\fR), and colon forms (\fB10:00\fR = mm:ss, \fB1:30:00\fR).
@@ -50,16 +50,18 @@ accepts Go syntax (\fB90s\fR, \fB5m\fR, \fB1h30m\fR), bare seconds
 Stopwatch with lap support.
 .TP
 .BI alarm " HH:MM"
-Alarm at a wall-clock time (24-hour, or with an am/pm suffix such as
-\fB7:30pm\fR). Rolls to the next day when the time has already passed.
-On fire, sends a critical desktop notification (notify-send).
+Alarm at the next occurrence of a local time (24-hour, or with an am/pm suffix
+such as \fB7:30pm\fR). Keep Golarm running until the alarm fires.
+Adjust the target to a future time with \fB+\fR or \fB-\fR.
 .SH OPTIONS
 .TP
 .BR \-12 ", " \-\-12h
 12-hour clock.
 .TP
 .BR \-fa ", " \-\-fa
-Persian (Eastern Arabic) digits on the small text lines.
+Persian (Eastern Arabic) digits on the small text lines. Kitty uses thin
+spaces to keep the digits in order. Very narrow panes use ASCII time if the
+spaced digits cannot fit.
 .TP
 .BR \-\-analog "[=ansi]"
 Open the analog clock. Golarm uses Kitty graphics when the terminal supports
@@ -89,8 +91,8 @@ Color theme: \fBdefault\fR, \fBcatppuccin\fR, \fBgruvbox\fR,
 Label shown in the timer UI and its notification (timer and alarm).
 .TP
 .BR \-q ", " \-\-quiet
-Headless timer: no TUI, fire the notification and exit 0 on completion,
-suitable for scripting.
+Run a headless timer. Exit 0 when the countdown completes and attempt a
+desktop notification. An interrupted countdown exits nonzero.
 .TP
 .BR \-v ", " \-\-version
 Print version.
@@ -113,10 +115,11 @@ Default theme.
 .SH KEYS
 .TP
 .B space
-Pause/resume; dismisses a fired timer alarm.
+Pause or resume the countdown timer or stopwatch. Dismiss a fired alert.
 .TP
 .B r
-Restart the timer / re-arm the alarm / reset the stopwatch.
+Restart the timer, re-arm the alarm for the next occurrence of the displayed
+time, or reset the stopwatch.
 .TP
 .B l
 Record a lap (chrono).
@@ -131,12 +134,13 @@ Cycle the analog dial designs.
 Toggle the dial-only view.
 .TP
 .B + ", " \- ", " "left", " "right"
-Adjust the remaining time by one minute (timer).
+Adjust the countdown or alarm time by one minute.
 .TP
 .BR q ", " Esc ", " Ctrl+C
 Quit.
 .SH FILES
-Notifications are sent via
-.BR notify-send (1).
+Desktop notifications use
+.BR notify-send (1)
+and are best effort. They require a desktop notification daemon.
 .SH LICENSE
 MIT — see LICENSE.

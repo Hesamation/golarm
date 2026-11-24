@@ -2,10 +2,21 @@ package ui
 
 import "strings"
 
-// FaDigits converts ASCII digits in s to Persian (Eastern Arabic) digits.
-func FaDigits(s string) string {
-	return strings.NewReplacer(
-		"0", "۰", "1", "۱", "2", "۲", "3", "۳", "4", "۴",
-		"5", "۵", "6", "۶", "7", "۷", "8", "۸", "9", "۹",
-	).Replace(s)
+// FaDigits converts ASCII digits to Persian digits, optionally separating runs
+// for terminals that shape adjacent Arabic-script digits right-to-left.
+func FaDigits(s string, spaced bool) string {
+	var text strings.Builder
+	previousDigit := false
+	for _, r := range s {
+		digit := r >= '0' && r <= '9'
+		if digit {
+			if spaced && previousDigit {
+				text.WriteRune('\u2009')
+			}
+			r = '۰' + (r - '0')
+		}
+		text.WriteRune(r)
+		previousDigit = digit
+	}
+	return text.String()
 }
